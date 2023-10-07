@@ -1,5 +1,6 @@
 #include "hashmap.h"
 
+#include <stdio.h>
 #include <stdlib.h>
 #include <stdint.h>
 
@@ -10,6 +11,12 @@ typedef struct entry {
     void *value;
     struct entry *next;
 } entry_t;
+
+typedef struct hashmap_iterator_private {
+    hashmap_t hashmap;
+    size_t current_bucket;
+    hashmap_entry_t current_entry;
+} hashmap_iterator_private;
 
 typedef struct hashmap_private {
     size_t size;            // number of elements
@@ -120,6 +127,69 @@ void print(hashmap_t self)
     }
 }
 
+bool iter_has_next(hashmap_iterator_t self)
+{
+    hashmap_iterator_private *self_private = (hashmap_iterator_private *)(self + 1);
+
+    // If there's a next item in the current chain, return true.
+    entry_t * current_entry = (entry_t *)self_private->current_entry;
+    if (current_entry && current_entry->next) {
+        return true;
+    }
+
+    // Otherwise, check subsequent buckets.
+    hashmap_private *private = (hashmap_private *)(self_private->hashmap + 1);
+    for (size_t i = self_private->current_bucket + 1; i < private->capacity; i++) {
+        if (private->buckets[i]) {
+            return true;
+        }
+    }
+
+    return false;
+}
+
+hashmap_entry_t iter_next(hashmap_iterator_t self)
+{
+    hashmap_iterator_private *iter = (hashmap_iterator_private *)(self + 1);
+
+    entry_t * current_entry = (entry_t *)iter->current_entry;
+    // If there's a next item in the current chain, move to it.
+    if (current_entry && current_entry->next) {
+        iter->current_entry = current_entry->next;
+        return iter->current_entry;
+    }
+
+    // Otherwise, move to the next non-empty bucket.
+    hashmap_private *private = (hashmap_private *)(iter->hashmap + 1);
+    for (size_t i = iter->current_bucket + 1; i < private->capacity; i++) {
+        if (private->buckets[i]) {
+            iter->current_bucket = i;
+            iter->current_entry = private->buckets[i];
+            return iter->current_entry;
+        }
+    }
+
+    // If no next item, return null or handle appropriately.
+    return NULL;
+}
+
+hashmap_iterator_t iter(hashmap_t self)
+{
+    hashmap_iterator_t iter = malloc(sizeof(hashmap_iterator) + sizeof(hashmap_iterator_private));
+    if (!iter) return NULL;
+
+    iter->has_next = iter_has_next;
+    iter->next = iter_next;
+
+    hashmap_iterator_private *private = (hashmap_iterator_private *)(iter + 1);
+    hashmap_private *map_private = (hashmap_private *)(self + 1);
+    private->current_entry = map_private->buckets[0];
+    private->hashmap = self;
+    private->current_bucket = -1;
+
+    return iter;
+}
+
 hashmap_t hashmap_new(
         size_t (*hash_f)(const void *),
         int (*cmp_f)(const void *, const void *),
@@ -132,6 +202,7 @@ hashmap_t hashmap_new(
     map->put = put;
     map->get = get;
     map->print = print;
+    map->iter = iter;
 
     hashmap_private *private = (hashmap_private *)(map + 1);
     private->size = 0;

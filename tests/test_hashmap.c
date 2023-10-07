@@ -86,6 +86,31 @@ void test_hashmap_get(void)
     printf("test_hashmap_get passed\n");
 }
 
+void test_hashmap_iterator(void)
+{
+    hashmap_t map = hashmap_default();
+
+    map->put(map, "hello", "world");
+    map->put(map, "hello2", "world2");
+    map->put(map, "hello3", "world3");
+    map->put(map, "hello4", "world4");
+    map->put(map, "hello5", "world5");
+    map->put(map, "hello6", "world6");
+
+    hashmap_iterator_t iter = map->iter(map);
+    const size_t expected = 6;
+    size_t actual = 0;
+
+    while (iter->has_next(iter)) {
+        iter->next(iter);
+        actual++;
+    }
+
+    assert(expected == actual);
+
+    hashmap_free(map);
+}
+
 
 void run_hashmap_tests(void)
 {
@@ -93,4 +118,5 @@ void run_hashmap_tests(void)
     test_hashmap_put();
     test_hashmap_with_dummy_hash_cmp();
     test_hashmap_get();
+    test_hashmap_iterator();
 }

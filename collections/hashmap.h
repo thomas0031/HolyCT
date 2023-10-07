@@ -6,6 +6,35 @@
 #include <string.h>
 #include <stdio.h>
 
+typedef struct hashmap_entry {
+    void * (*key)(struct hashmap_entry *self);
+    void * (*value)(struct hashmap_entry *self);
+} hashmap_entry;
+
+typedef hashmap_entry *hashmap_entry_t;
+
+typedef struct hashmap_iterator {
+    /**
+     * Returns true if there are more entries in the hashmap.
+     *
+     * @param  iter The iterator to check.
+     *
+     * @return true if there are more entries in the hashmap, false otherwise.
+     */
+    bool (*has_next)(struct hashmap_iterator *self);
+
+    /**
+     * Returns the next entry in the hashmap.
+     *
+     * @param  iter The iterator to get the next entry from.
+     *
+     * @return The next entry in the hashmap.
+     */
+    hashmap_entry_t (*next)(struct hashmap_iterator *self);
+} hashmap_iterator;
+
+typedef hashmap_iterator *hashmap_iterator_t;
+
 typedef struct hashmap {
     /**
      * Returns the number of key-value pairs in the hashmap.
@@ -44,6 +73,15 @@ typedef struct hashmap {
      * @param map The hashmap to print.
      */
     void  (*print)(struct hashmap *self);
+
+    /**
+     * Returns iterator over the entries in the hashmap.
+     *
+     * @param  map The hashmap to iterate over.
+     *
+     * @return An iterator over the entries in the hashmap.
+     */
+    hashmap_iterator* (*iter)(struct hashmap *self);
 } hashmap;
 typedef hashmap *hashmap_t;
 
