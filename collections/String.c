@@ -97,13 +97,9 @@ size_t string_find_from(string_t str, const str_t substr, size_t start)
         if (vec_u8_get(str->data, i) == substr[0]) {
             size_t j = 0;
             for (; j < sub_len; ++j) {
-                if (vec_u8_get(str->data, i + j) != substr[j]) {
-                    break;
-                }
+                if (vec_u8_get(str->data, i + j) != substr[j]) break;
             }
-            if (j == sub_len) {
-                return i;
-            }
+            if (j == sub_len) return i;
         }
     }
 
