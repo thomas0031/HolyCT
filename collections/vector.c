@@ -20,6 +20,16 @@ vec_u8_t vec_u8_default(void) {
     return vec;
 }
 
+vec_u8_t vec_u8_with_capacity(size_t cap) {
+    vec_u8_t vec = malloc(sizeof(struct vec_u8));
+
+    vec->len = 0;
+    vec->cap = cap;
+    vec->data = malloc(sizeof(u8_t) * cap);
+
+    return vec;
+}
+
 void vec_u8_free(vec_u8_t vec) {
     free(vec->data);
     free(vec);
@@ -45,7 +55,21 @@ void vec_u8_push(vec_u8_t vec, u8_t val) {
 }
 
 u8_t vec_u8_get(vec_u8_t vec, size_t index) {
+    // TODO: need to think about error handling (would be nice to add result/option types)
+    if (index >= vec->len) return 0;
+
     return vec->data[index];
+}
+
+void *vec_u8_get_ptr(vec_u8_t vec, size_t index) {
+    if (index >= vec->len) return NULL;
+
+    return vec->data + index;
+}
+
+void *vec_u8_get_ptr_raw(vec_u8_t vec, size_t index)
+{
+    return vec->data + index;
 }
 
 void vec_u8_print(vec_u8_t vec)
