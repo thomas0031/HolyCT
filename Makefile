@@ -2,8 +2,8 @@
 CC = gcc
 
 # Directories
-SRC_DIR = collections global
-INCLUDE_DIR = collections global
+SRC_DIR = collections global template scary
+INCLUDE_DIR = collections global template scary
 
 # Compiler flags (Add each include directory)
 CFLAGS = $(foreach dir, $(INCLUDE_DIR), -I$(dir))

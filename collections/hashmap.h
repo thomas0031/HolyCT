@@ -3,8 +3,48 @@
 
 #include <stddef.h>
 #include <stdbool.h>
+#include <string.h>
+#include <stdio.h>
 
-typedef struct hashmap hashmap;
+typedef struct hashmap {
+    /**
+     * Returns the number of key-value pairs in the hashmap.
+     *
+     * @param  map The hashmap to get the size of.
+     *
+     * @return The number of key-value pairs in the hashmap.
+     */
+    size_t (*size)(struct hashmap *self);
+
+    /**
+     * Inserts a new key-value pair into the hashmap.
+     * If the key already exists, the data is overwritten.
+     *
+     * @param  map  The hashmap to insert into.
+     * @param  key  The key to insert.
+     * @param  data The data to insert.
+     *
+     * @return true if the insertion/overwrite was successful, false otherwise.
+     */
+    bool (*put)(struct hashmap *self, const void *key, void *data);
+
+    /**
+     * Gets the data associated with a key.
+     *
+     * @param  map The hashmap to get from.
+     * @param  key The key to get.
+     *
+     * @return The data associated with the key, or NULL if the key does not exist.
+     */
+    void * (*get)(struct hashmap *self, const void *key);
+
+    /**
+     * Prints the contents of the hashmap to stdout.
+     *
+     * @param map The hashmap to print.
+     */
+    void  (*print)(struct hashmap *self);
+} hashmap;
 typedef hashmap *hashmap_t;
 
 /**
@@ -15,6 +55,7 @@ typedef hashmap *hashmap_t;
  * @return The hash of the key.
  */
 typedef size_t (*hash_func_t)(const void *);
+
 /**
  * A function that compares two keys.
  *
@@ -24,6 +65,59 @@ typedef size_t (*hash_func_t)(const void *);
  * @return < 0 if a < b, 0 if a == b, > 0 if a > b.
  */
 typedef int (*cmp_func_t)(const void *, const void *);
+
+/**
+ * A function that prints a key-value pair to stdout.
+ *
+ * @param key   The key to print.
+ * @param value The value to print.
+ */
+typedef void (*print_func_t)(const void *, const void *);
+
+// TODO move to utils.h
+/**
+ * A default hash function for strings.
+ *
+ * @param  key The string to hash.
+ *
+ * @return The hash of the string.
+ */
+static size_t hash_str(const void *key)
+{
+    size_t hash = 5381;
+    const char *str = (const char *)key;
+    int c;
+
+    while ((c = *str++)) hash = ((hash << 5) + hash) + c;
+
+    return hash;
+}
+
+// TODO move to utils.h
+/**
+ * A default compare function for strings.
+ *
+ * @param  a The first string.
+ * @param  b The second string.
+ *
+ * @return < 0 if a < b, 0 if a == b, > 0 if a > b.
+ */
+static int cmp_str(const void *a, const void *b)
+{
+    return strcmp((char *)a, (char *)b);
+}
+
+// TODO move to utils.h
+/**
+ * A default print function for strings.
+ *
+ * @param key   The key to print.
+ * @param value The value to print.
+ */
+static void print_str(const void *key, const void *value)
+{
+    printf("%s: %s\n", (const char *)key, (const char *)value);
+}
 
 /**
  * Creates a new hashmap with the default hash and compare functions.
@@ -36,47 +130,18 @@ hashmap_t hashmap_default(void);
 /**
  * Creates a new hashmap with the given hash and compare functions.
  *
- * @param  hash The hash function to use.
- * @param  cmp  The compare function to use.
+ * @param  hash_f The hash function to use.
+ * @param  cmp_f  The compare function to use.
+ * @param  print_f The print function to use.
  *
  * @return A new hashmap.
  */
 hashmap_t hashmap_new(
-        hash_func_t hash,
-        cmp_func_t cmp
+        hash_func_t hash_f,
+        cmp_func_t cmp_f,
+        print_func_t print_f
         );
 
 void hashmap_free(hashmap_t map);
-
-/**
- * Returns the number of key-value pairs in the hashmap.
- *
- * @param  map The hashmap to get the size of.
- *
- * @return The number of key-value pairs in the hashmap.
- */
-size_t hashmap_size(hashmap_t map);
-
-/**
- * Inserts a new key-value pair into the hashmap.
- * If the key already exists, the data is overwritten.
- *
- * @param  map  The hashmap to insert into.
- * @param  key  The key to insert.
- * @param  data The data to insert.
- *
- * @return true if the insertion/overwrite was successful, false otherwise.
- */
-bool hashmap_put(hashmap_t map, const void *key, void *data);
-
-/**
- * Gets the data associated with a key.
- *
- * @param  map The hashmap to get from.
- * @param  key The key to get.
- *
- * @return The data associated with the key, or NULL if the key does not exist.
- */
-void *hashmap_get(hashmap_t map, const void *key);
 
 #endif // HASHMAP_H

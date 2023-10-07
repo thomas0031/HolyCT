@@ -7,7 +7,7 @@ void test_hashmap_default(void)
 {
     hashmap_t map = hashmap_default();
 
-    assert(hashmap_size(map) == 0);
+    assert(map->size(map) == 0);
 
     hashmap_free(map);
 
@@ -19,16 +19,16 @@ void test_hashmap_put(void)
     hashmap_t map = hashmap_default();
 
     const char *key1 = "hello";
-    bool put1 = hashmap_put(map, key1, "world");
+    bool put1 = map->put(map, key1, "world");
     assert(put1 == true);
-    assert(hashmap_size(map) == 1);
-    bool put2 = hashmap_put(map, key1, "world2");
+    assert(map->size(map) == 1);
+    bool put2 = map->put(map, key1, "world2");
     assert(put2 == true);
-    assert(hashmap_size(map) == 1);
+    assert(map->size(map) == 1);
     const char *key2 = "hello2";
-    bool put3 = hashmap_put(map, key2, "world3");
+    bool put3 = map->put(map, key2, "world3");
     assert(put3 == true);
-    assert(hashmap_size(map) == 2);
+    assert(map->size(map) == 2);
 
     hashmap_free(map);
 
@@ -47,20 +47,20 @@ void test_hashmap_with_dummy_hash_cmp(void)
         return 0;
     }
 
-    hashmap_t map = hashmap_new(dummy_hash, dummy_cmp);
+    hashmap_t map = hashmap_new(dummy_hash, dummy_cmp, NULL);
 
     const char *key1 = "hello";
-    bool put1 = hashmap_put(map, key1, "world");
+    bool put1 = map->put(map, key1, "world");
     assert(put1 == true);
-    assert(hashmap_size(map) == 1);
+    assert(map->size(map) == 1);
     const char *key2 = "hello2";
-    bool put2 = hashmap_put(map, key2, "world2");
+    bool put2 = map->put(map, key2, "world2");
     assert(put2 == true);
-    assert(hashmap_size(map) == 1);
+    assert(map->size(map) == 1);
     const char *key3 = "hello3";
-    bool put3 = hashmap_put(map, key3, "world3");
+    bool put3 = map->put(map, key3, "world3");
     assert(put3 == true);
-    assert(hashmap_size(map) == 1);
+    assert(map->size(map) == 1);
 
     hashmap_free(map);
 
@@ -72,13 +72,13 @@ void test_hashmap_get(void)
     hashmap_t map = hashmap_default();
 
     const char *key = "hello";
-    const char *value = "world";
+    char *value = "world";
 
-    bool put1 = hashmap_put(map, key, (void *)value);
+    bool put1 = map->put(map, key, value);
     assert(put1 == true);
-    assert(hashmap_size(map) == 1);
+    assert(map->size(map) == 1);
 
-    const char *get = hashmap_get(map, key);
+    const char *get = map->get(map, key);
     assert(strncmp(get, value, 5) == 0);
 
     hashmap_free(map);
