@@ -29,3 +29,10 @@ void test_vector_push(void)
 
     printf("test_vector_push passed\n");
 }
+
+void run_vector_tests(void)
+{
+    test_vector_default();
+    test_vector_push();
+}
+

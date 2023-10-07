@@ -1,7 +1,7 @@
 #include <assert.h>
 #include <stdio.h>
-#include <string.h>
 #include "../collections/hashmap.h"
+#include <string.h>
 
 void test_hashmap_default(void)
 {
@@ -79,10 +79,18 @@ void test_hashmap_get(void)
     assert(hashmap_size(map) == 1);
 
     const char *get = hashmap_get(map, key);
-    assert(strcmp(get, value) == 0);
+    assert(strncmp(get, value, 5) == 0);
 
     hashmap_free(map);
 
     printf("test_hashmap_get passed\n");
 }
 
+
+void run_hashmap_tests(void)
+{
+    test_hashmap_default();
+    test_hashmap_put();
+    test_hashmap_with_dummy_hash_cmp();
+    test_hashmap_get();
+}

@@ -1,6 +1,6 @@
 #include <assert.h>
 #include <stdio.h>
-#include "../collections/string.h"
+#include "../collections/String.h"
 
 void test_string_default(void)
 {
@@ -22,4 +22,10 @@ void test_string_from_cstr(void)
     string_free(str);
 
     printf("test_string_from_cstr passed\n");
+}
+
+void run_string_tests(void)
+{
+    test_string_default();
+    test_string_from_cstr();
 }
