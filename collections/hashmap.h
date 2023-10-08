@@ -6,14 +6,33 @@
 #include <string.h>
 #include <stdio.h>
 
-typedef struct hashmap_entry {
-    void * (*key)(struct hashmap_entry *self);
-    void * (*value)(struct hashmap_entry *self);
-} hashmap_entry;
-
+typedef struct hashmap_entry hashmap_entry;
 typedef hashmap_entry *hashmap_entry_t;
+typedef struct hashmap_iterator hashmap_iterator;
+typedef hashmap_iterator *hashmap_iterator_t;
+typedef struct hashmap hashmap;
+typedef hashmap *hashmap_t;
 
-typedef struct hashmap_iterator {
+struct hashmap_entry {
+    /**
+     * Returns the key of the entry.
+     *
+     * @param  entry The entry to get the key from.
+     *
+     * @return The key of the entry.
+     */
+    void * (*key)(struct hashmap_entry *self);
+    /**
+     * Returns the value of the entry.
+     *
+     * @param  entry The entry to get the value from.
+     *
+     * @return The value of the entry.
+     */
+    void * (*value)(struct hashmap_entry *self);
+};
+
+struct hashmap_iterator {
     /**
      * Returns true if there are more entries in the hashmap.
      *
@@ -31,11 +50,9 @@ typedef struct hashmap_iterator {
      * @return The next entry in the hashmap.
      */
     hashmap_entry_t (*next)(struct hashmap_iterator *self);
-} hashmap_iterator;
+};
 
-typedef hashmap_iterator *hashmap_iterator_t;
-
-typedef struct hashmap {
+struct hashmap {
     /**
      * Returns the number of key-value pairs in the hashmap.
      *
@@ -82,8 +99,7 @@ typedef struct hashmap {
      * @return An iterator over the entries in the hashmap.
      */
     hashmap_iterator* (*iter)(struct hashmap *self);
-} hashmap;
-typedef hashmap *hashmap_t;
+};
 
 /**
  * A function that hashes a key.
@@ -180,6 +196,11 @@ hashmap_t hashmap_new(
         print_func_t print_f
         );
 
+/**
+ * Frees the memory used by the hashmap.
+ *
+ * @param map The hashmap to free.
+ */
 void hashmap_free(hashmap_t map);
 
 #endif // HASHMAP_H

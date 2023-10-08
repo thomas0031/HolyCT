@@ -4,19 +4,21 @@
 #include "../collections/String.h"
 #include "../global/types.h"
 
-typedef struct context {
+typedef struct context context;
+typedef context *context_t;
+typedef struct engine engine;
+typedef engine *engine_t;
+
+struct context {
     void (*insert)(struct context *self, str_t key, str_t value);
     void (*print)(struct context *self);
-} context;
+};
 
-typedef context *context_t;
-
-typedef struct engine {
+struct engine {
     void (*update)(str_t);
     string_t (*render)(struct engine *self, context_t);
     void (*free)(void);
-} engine;
-typedef engine *engine_t;
+};
 
 /**
  * Creates a new engine with the given template.
