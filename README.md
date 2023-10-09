@@ -11,3 +11,7 @@ cool desc
 - [ ] Optimize string replace function (currently N * M i think)
 - [ ] Optimize engine render function (currently N * M + huge memory reallocs)
 - [ ] Add cache to the engine (don't want to rerender every time), think about timebased and check GC realizations for inspiration
+
+- [ ] Prevent XSS in Engine->render
+- [ ] Add conditionals and loops
+- [ ] Fix static placesholders 
