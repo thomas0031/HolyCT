@@ -4,7 +4,7 @@
 
 void test_string_default(void)
 {
-    string_t str = string_default();
+    String_t str = string_default();
 
     assert(string_len(str) == 0);
 
@@ -15,7 +15,7 @@ void test_string_default(void)
 
 void test_string_with_capacity(void)
 {
-    string_t str = string_with_capacity(10);
+    String_t str = string_with_capacity(10);
 
     assert(string_len(str) == 0);
     assert(string_cap(str) == 10);
@@ -27,7 +27,7 @@ void test_string_with_capacity(void)
 
 void test_string_from_cstr(void)
 {
-    string_t str = string_from_cstr("hello");
+    String_t str = string_from_cstr("hello");
 
     assert(string_len(str) == 5);
 
@@ -38,8 +38,8 @@ void test_string_from_cstr(void)
 
 void test_string_cmp(void)
 {
-    string_t str1 = string_from_cstr("hello");
-    string_t str2 = string_from_cstr("hello");
+    String_t str1 = string_from_cstr("hello");
+    String_t str2 = string_from_cstr("hello");
 
     assert(string_cmp(str1, str2) == 0);
     
@@ -50,7 +50,7 @@ void test_string_cmp(void)
 
 void test_string_append(void)
 {
-    string_t str = string_default();
+    String_t str = string_default();
 
     string_append(str, "h");
     string_append(str, "e");
@@ -68,7 +68,7 @@ void test_string_append(void)
 
 void test_string_find(void)
 {
-    string_t str = string_from_cstr("hello");
+    String_t str = string_from_cstr("hello");
 
     assert(string_find(str, "h") == 0);
     assert(string_find(str, "e") == 1);
@@ -82,10 +82,10 @@ void test_string_find(void)
 
 void test_string_replace(void)
 {
-    string_t str = string_from_cstr("foo bar foo bar");
-    string_t expected = string_from_cstr("foo 42 foo 42");
+    String_t str = string_from_cstr("foo bar foo bar");
+    String_t expected = string_from_cstr("foo 42 foo 42");
 
-    string_t actual = string_replace(str, "bar", "42");
+    String_t actual = string_replace(str, "bar", "42");
     
     assert(string_cmp(actual, expected) == 0);
 
@@ -98,7 +98,7 @@ void test_string_replace(void)
 
 void test_string_find_from(void)
 {
-    string_t str = string_from_cstr("hello");
+    String_t str = string_from_cstr("hello");
 
     assert(string_find_from(str, "h", 0) == 0);
     assert(string_find_from(str, "e", 0) == 1);

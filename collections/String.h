@@ -4,17 +4,17 @@
 #include "../global/types.h"
 #include <stddef.h>
 
-typedef struct string string;
-typedef string* string_t;
-typedef struct slice slice;
-typedef slice* slice_t;
+typedef struct String String;
+typedef String* String_t;
+typedef struct Slice Slice;
+typedef Slice* Slice_t;
 
 /**
  * Creates a new string with the default capacity.
  *
  * @return The new string.
  */
-string_t string_default(void);
+String_t string_default(void);
 
 /**
  * Creates a new string with the given capacity.
@@ -23,7 +23,7 @@ string_t string_default(void);
  *
  * @return The new string.
  */
-string_t string_with_capacity(size_t capacity);
+String_t string_with_capacity(size_t capacity);
 
 /**
  * Creates a new string from the given c string.
@@ -32,7 +32,7 @@ string_t string_with_capacity(size_t capacity);
  *
  * @return The new string.
  */
-string_t string_from_cstr(const str_t cstr);
+String_t string_from_cstr(const str_t cstr);
 
 /**
  * Creates a new string from the given string.
@@ -41,7 +41,7 @@ string_t string_from_cstr(const str_t cstr);
  *
  * @return The new string.
  */
-void string_free(string_t str);
+void string_free(String_t str);
 
 /**
  * Returns the length of the string.
@@ -50,7 +50,7 @@ void string_free(string_t str);
  *
  * @return The length of the string.
  */
-size_t string_len(string_t str);
+size_t string_len(String_t str);
 
 /**
  * Returns the capacity of the string.
@@ -59,7 +59,7 @@ size_t string_len(string_t str);
  *
  * @return The capacity of the string.
  */
-size_t string_cap(string_t str);
+size_t string_cap(String_t str);
 
 /**
  * Returns the item at the given index.
@@ -69,7 +69,7 @@ size_t string_cap(string_t str);
  *
  * @return The item at the given index.
  */
-int string_cmp(string_t a, string_t b);
+int string_cmp(String_t a, String_t b);
 
 /**
  * Returns the item at the given index.
@@ -79,7 +79,7 @@ int string_cmp(string_t a, string_t b);
  *
  * @return The item at the given index.
  */
-void string_append(string_t str, const str_t item);
+void string_append(String_t str, const str_t item);
 
 /**
  * Returns the first index of the given substring in the given string
@@ -92,7 +92,7 @@ void string_append(string_t str, const str_t item);
  * @return The first index of the substring in the string, or -1 if the
  *        substring is not in the string.
  */
-size_t string_find_from(string_t str, const str_t substr, size_t start);
+size_t string_find_from(String_t str, const str_t substr, size_t start);
 
 /**
  * Returns the first index of the given substring in the given string
@@ -103,7 +103,7 @@ size_t string_find_from(string_t str, const str_t substr, size_t start);
  * @return The first index of the substring in the string, or -1 if the
  *        substring is not in the string.
  */
-size_t string_find(string_t str, const str_t substr);
+size_t string_find(String_t str, const str_t substr);
 
 /**
  * Returns slice of the given string from start to end.
@@ -114,7 +114,7 @@ size_t string_find(string_t str, const str_t substr);
  *
  * @return The slice of the string.
  */
-slice_t string_slice(string_t str, size_t start, size_t end);
+Slice_t string_slice(String_t str, size_t start, size_t end);
 
 /**
  * Returns the string with the given substring replaced with the given
@@ -126,7 +126,7 @@ slice_t string_slice(string_t str, size_t start, size_t end);
  *
  * @return The string with the substring replaced.
  */
-string_t string_replace(string_t str, const str_t from, const str_t to);
+String_t string_replace(String_t str, const str_t from, const str_t to);
 
 /**
  * Returns the string with the given substring replaced with the given
@@ -138,7 +138,7 @@ string_t string_replace(string_t str, const str_t from, const str_t to);
  *
  * @return The string with the substring replaced.
  */
-void string_print(string_t str);
+void string_print(String_t str);
 
 /**
  * Returns the string as a c string.
@@ -147,6 +147,6 @@ void string_print(string_t str);
  *
  * @return The string as a c string.
  */
-str_t string_as_cstr(string_t str);
+str_t string_as_cstr(String_t str);
 
 #endif // !STRING_H

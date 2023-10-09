@@ -120,13 +120,14 @@ typedef size_t (*hash_func_t)(const void *);
  */
 typedef int (*cmp_func_t)(const void *, const void *);
 
+// TODO move to utils.h
 /**
  * A function that prints a key-value pair to stdout.
  *
  * @param key   The key to print.
  * @param value The value to print.
  */
-typedef void (*print_func_t)(const void *, const void *);
+typedef void (*print_2_func_t)(const void *, const void *);
 
 // TODO move to utils.h
 /**
@@ -193,7 +194,7 @@ hashmap_t hashmap_default(void);
 hashmap_t hashmap_new(
         hash_func_t hash_f,
         cmp_func_t cmp_f,
-        print_func_t print_f
+        print_2_func_t print_f
         );
 
 /**

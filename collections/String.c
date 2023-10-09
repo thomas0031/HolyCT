@@ -1,67 +1,67 @@
 #include "String.h"
-#include "vector.h"
-#include <stddef.h>
-#include <stdlib.h>
-#include <stdio.h>
-#include <string.h>
+#include "Vector_typed.h"
 
-struct string {
-    vec_u8_t data;
+#include <stdlib.h>
+#include <string.h>
+#include <stdio.h>
+
+struct String {
+    Vector_u8_t data;
 };
 
-struct slice {
+struct Slice {
     str_t ptr;
     size_t len;
 };
 
-string_t string_default(void)
+String_t string_default(void)
 {
-    string_t str = malloc(sizeof(struct string));
+    String_t str = malloc(sizeof(String));
 
-    str->data = vec_u8_default();
+    str->data = vector_u8_default();
 
     return str;
 }
 
-string_t string_with_capacity(size_t cap)
+String_t string_with_capacity(size_t cap)
 {
-    string_t str = malloc(sizeof(struct string));
+    String_t str = malloc(sizeof(String));
 
-    str->data = vec_u8_with_capacity(cap);
+    str->data = vector_u8_with_capacity(cap);
 
     return str;
 }
 
-string_t string_from_cstr(const str_t cstr)
+String_t string_from_cstr(const str_t cstr)
 {
-    string_t str = string_default();
+    String_t str = string_default();
 
     for (size_t i = 0; cstr[i] != '\0'; ++i) {
-        vec_u8_push(str->data, cstr[i]);
+        str->data->push(str->data, cstr[i]);
     }
 
     return str;
 }
 
-void string_free(string_t str)
+void string_free(String_t str)
 {
-    vec_u8_free(str->data);
+    vector_u8_free(str->data);
     free(str);
 
     str = NULL;
 }
 
-size_t string_len(string_t str)
+size_t string_len(String_t str)
 {
-    return vec_u8_len(str->data);
+    return str->data->len(str->data);
 }
 
-size_t string_cap(string_t str)
+size_t string_cap(String_t str)
 {
-    return vec_u8_cap(str->data);
+    return str->data->cap(str->data);
 } 
 
-int string_cmp(string_t a, string_t b)
+int string_cmp(String_t a, String_t b)
 {
     if (string_len(a) != string_len(b)) {
         return string_len(a) - string_len(b);
@@ -69,24 +69,26 @@ int string_cmp(string_t a, string_t b)
 
     size_t len = string_len(a);
     for (size_t i = 0; i < len; ++i) {
-        if (vec_u8_get(a->data, i) != vec_u8_get(b->data, i)) {
-            return vec_u8_get(a->data, i) - vec_u8_get(b->data, i);
+        u8 a_byte = a->data->get(a->data, i);
+        u8 b_byte = b->data->get(b->data, i);
+        if (a_byte != b_byte) {
+            return a_byte - b_byte;
         }
     }
 
     return 0;
 }
 
-void string_append(string_t str, const str_t cstr)
+void string_append(String_t str, const str_t cstr)
 {
     for (size_t i = 0; cstr[i] != '\0'; ++i) {
-        vec_u8_push(str->data, cstr[i]);
+        str->data->push(str->data, cstr[i]);
     }
 }
 
 // TODO: optimize this, currently O(n*m) where n is the length of the string
 // and m is the length of the substring
-size_t string_find_from(string_t str, const str_t substr, size_t start)
+size_t string_find_from(String_t str, const str_t substr, size_t start)
 {
     size_t len = string_len(str);
     size_t sub_len = strlen(substr);
@@ -94,10 +96,10 @@ size_t string_find_from(string_t str, const str_t substr, size_t start)
     if (start > len - sub_len + 1) return -1;
 
     for (size_t i = start; i < len; ++i) {
-        if (vec_u8_get(str->data, i) == substr[0]) {
+        if (str->data->get(str->data, i) == substr[0]) {
             size_t j = 0;
             for (; j < sub_len; ++j) {
-                if (vec_u8_get(str->data, i + j) != substr[j]) break;
+                if (str->data->get(str->data, i + j) != substr[j]) break;
             }
             if (j == sub_len) return i;
         }
@@ -106,24 +108,24 @@ size_t string_find_from(string_t str, const str_t substr, size_t start)
     return -1;
 }
 
-size_t string_find(string_t str, const str_t substr)
+size_t string_find(String_t str, const str_t substr)
 {
     return string_find_from(str, substr, 0);
 }
 
-slice_t string_slice(string_t str, size_t start, size_t end)
+Slice_t string_slice(String_t str, size_t start, size_t end)
 {
     if (start > end || end > string_len(str)) return NULL;
 
-    slice_t slice = malloc(sizeof(struct slice));
+    Slice_t slice = malloc(sizeof(Slice));
 
-    slice->ptr = vec_u8_get_ptr(str->data, start);
+    slice->ptr = str->data->get_ptr(str->data, start);  // TODO check
     slice->len = end - start;
 
     return slice;
 }
 
-string_t string_replace(string_t str, const str_t from, const str_t to)
+String_t string_replace(String_t str, const str_t from, const str_t to)
 {
     size_t len = string_len(str);
     size_t from_len = strlen(from);
@@ -132,15 +134,13 @@ string_t string_replace(string_t str, const str_t from, const str_t to)
     // Count the occurrences of 'from' in 'str'
     int count = 0;
     size_t tmp_from_idx = 0;
-    while ((tmp_from_idx = string_find_from(str, from, tmp_from_idx) + 1)) {
-        count++;
-    }
+    while ((tmp_from_idx = string_find_from(str, from, tmp_from_idx) + 1)) count++;
 
     // Calculate the new string length
     size_t new_len = len + count * (to_len - from_len);
     
     // Allocate memory for the new string data
-    string_t new_str = string_with_capacity(new_len);
+    String_t new_str = string_with_capacity(new_len);
 
     tmp_from_idx = 0;
     str_t src = string_as_cstr(str);
@@ -163,22 +163,21 @@ string_t string_replace(string_t str, const str_t from, const str_t to)
         }
     }
 
-    string_append(new_str, initial_dst);
+    string_append(new_str, initial_dst);    // FAIL TOOT
 
     return new_str;
 }
 
-void string_print(string_t str)
+void string_print(String_t str)
 {
     putchar('"');
     for (size_t i = 0; i < string_len(str); ++i) {
-        putchar(vec_u8_get(str->data, i));
+        putchar(str->data->get(str->data, i));
     }
     putchar('"');
-    fflush(stdout);
 }
 
-str_t string_as_cstr(string_t str)
+str_t string_as_cstr(String_t str)
 {
-    return vec_u8_get_ptr_raw(str->data, 0);
+    return str->data->get_ptr_raw(str->data, 0);
 }

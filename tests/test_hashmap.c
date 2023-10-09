@@ -1,6 +1,6 @@
 #include <assert.h>
 #include <stdio.h>
-#include "../collections/hashmap.h"
+#include "../collections/HashMap.h"
 #include <string.h>
 
 void test_hashmap_default(void)
