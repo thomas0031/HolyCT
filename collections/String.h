@@ -149,4 +149,8 @@ void string_print(String_t str);
  */
 str_t string_as_cstr(String_t str);
 
+void string_slice_print(Slice_t slice);
+
+str_t string_slice_to_cstr(Slice_t slice);
+
 #endif // !STRING_H

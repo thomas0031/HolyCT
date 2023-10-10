@@ -70,7 +70,14 @@ struct Vector {
      *
      * @param  self  The vector.
      */
-    void (*print)(Vector_t vec);
+    void (*print)(Vector_t self);
+
+    /**
+    * Clear the vector.
+    *
+    * @param self the vector
+    */
+    void (*clear)(Vector_t self);
 };
 
 // TODO move to utils

@@ -181,3 +181,21 @@ str_t string_as_cstr(String_t str)
 {
     return str->data->get_ptr_raw(str->data, 0);
 }
+
+void string_slice_print(Slice_t slice)
+{
+    for(size_t i = 0; i < slice->len; ++i) {
+        putchar(slice->ptr[i]);
+    }
+}
+
+str_t string_slice_to_cstr(Slice_t slice) 
+{
+    str_t result = malloc(sizeof(char) * slice->len);
+
+    for(size_t i = 0; i < slice->len; ++i) {
+        result[i] = slice->ptr[i];
+    }
+
+    return result;
+}

@@ -74,6 +74,13 @@ void vector_generic_print(Vector_t self)
     putchar(']');
 }
 
+void vector_generic_clear(Vector_t self)
+{
+    vector_private *private = (vector_private *)(self + 1);
+
+    for(int i = 0; i < private->len; ++i) free(private->data[i]);
+}
+
 // TODO remove when impl optional
 static const void *get_or_default(const void *optional, const void *default_value) {
     return optional == NULL ? default_value : optional;
@@ -94,6 +101,7 @@ Vector_t vector_default(print_1_func_t print_f) {
     vec->get_ptr = vector_generic_get_ptr;
     vec->get_ptr_raw = vector_generic_get_ptr_raw;
     vec->print = vector_generic_print;
+    vec->clear = vector_generic_clear;
 
     vector_private *private = (vector_private *)(vec + 1);
     private->len = 0;
@@ -116,6 +124,7 @@ Vector_t vector_with_capacity(size_t capacity, print_1_func_t print_f) {
     vec->get_ptr = vector_generic_get_ptr;
     vec->get_ptr_raw = vector_generic_get_ptr_raw;
     vec->print = vector_generic_print;
+    vec->clear = vector_generic_clear;
 
     vector_private *private = (vector_private *)(vec + 1);
     private->len = 0;
