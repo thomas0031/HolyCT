@@ -3,29 +3,33 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdint.h>
+#include <unistd.h>
 
 #define DEFAULT_CAPACITY 16
 
-typedef struct entry {
+typedef struct MapEntry_private MapEntry_private;
+typedef struct MapIterator_private MapIterator_private;
+typedef struct HashMap_private HashMap_private;
+
+struct MapEntry_private {
     const void *key;
     void *value;
-    struct entry *next;
-} entry_t;
+    MapEntry_private *next;
+};
 
-typedef struct hashmap_iterator_private {
-    hashmap_t hashmap;
+struct MapIterator_private {
+    HashMap* hashmap;
     size_t current_bucket;
-    hashmap_entry_t current_entry;
-} hashmap_iterator_private;
+    MapEntry_private* current_entry;
+};
 
-typedef struct hashmap_private {
-    size_t size;            // number of elements
-    size_t capacity;        // number of buckets
-    hash_func_t hash;       // hash function
-    cmp_func_t cmp;         // comparison function
-    print_2_func_t print;   // print function
-    entry_t **buckets;      // array of buckets
-} hashmap_private;
+struct HashMap_private {
+    size_t size;                // number of elements
+    size_t capacity;            // number of buckets
+    hash_func_t hash;           // hash function
+    cmp_func_t cmp;             // comparison function
+    MapEntry_private **buckets; // array of buckets
+};
 
 static size_t default_hash(const void *key)
 {
@@ -42,31 +46,26 @@ static int default_cmp(const void *a, const void *b)
     return 0;
 }
 
-static void default_print(const void *key, const void *value)
-{
-    printf("%p -> %p\n", key, value);
-}
-
 // TODO remove when impl optional
 static const void * get_or_default(const void *optional, const void *default_value)
 {
     return optional ? optional : default_value;
 }
 
-size_t size(hashmap_t self)
+size_t  hashmap_size(const HashMap *self)
 {
-    hashmap_private *private = (hashmap_private *)(self + 1);
+    HashMap_private *private = (HashMap_private *)(self + 1);
 
     return private->size;
 }
 
 // TODO: resize buckets
-bool put(hashmap_t self, const void *key, void *data)
+bool hashmap_put(HashMap *self, const void *key, void *data)
 {
-    hashmap_private *private = (hashmap_private *)(self + 1);
+    HashMap_private *private = (HashMap_private *)(self + 1);
 
     size_t index = private->hash(key) % private->capacity;
-    entry_t *entry = private->buckets[index];
+    MapEntry_private *entry = (MapEntry_private*)private->buckets[index];
 
     while (entry) {
         if (!private->cmp(entry->key, key)) {
@@ -76,7 +75,7 @@ bool put(hashmap_t self, const void *key, void *data)
         entry = entry->next;
     }
 
-    entry = malloc(sizeof(entry_t));
+    entry = malloc(sizeof(MapEntry_private));
     if (!entry) return false;
 
     entry->key = key;
@@ -88,12 +87,12 @@ bool put(hashmap_t self, const void *key, void *data)
     return true;
 }
 
-void *get_impl(hashmap_t self, const void *key)
+void *hashmap_get(const HashMap *self, const void *key)
 {
-    hashmap_private *private = (hashmap_private *)(self + 1);
+    HashMap_private *private = (HashMap_private *)(self + 1);
 
     size_t index = private->hash(key) % private->capacity;
-    entry_t *entry = private->buckets[index];
+    MapEntry_private *entry = private->buckets[index];
 
     while (entry) {
         if (!private->cmp(entry->key, key)) {
@@ -105,31 +104,18 @@ void *get_impl(hashmap_t self, const void *key)
     return NULL;
 }
 
-void print_impl(hashmap_t self)
+bool hashmap_iter_has_next(const MapIterator *self)
 {
-    hashmap_private *private = (hashmap_private *)(self + 1);
-
-    for (size_t i = 0; i < private->capacity; i++) {
-        entry_t *entry = private->buckets[i];
-        while (entry) {
-            private->print(entry->key, entry->value);
-            entry = entry->next;
-        }
-    }
-}
-
-bool iter_has_next(hashmap_iterator_t self)
-{
-    hashmap_iterator_private *self_private = (hashmap_iterator_private *)(self + 1);
+    MapIterator_private *self_private = (MapIterator_private *)(self + 1);
 
     // If there's a next item in the current chain, return true.
-    entry_t * current_entry = (entry_t *)self_private->current_entry;
+    MapEntry_private *current_entry = self_private->current_entry;
     if (current_entry && current_entry->next) {
         return true;
     }
 
     // Otherwise, check subsequent buckets.
-    hashmap_private *private = (hashmap_private *)(self_private->hashmap + 1);
+    HashMap_private *private = (HashMap_private*)(self_private->hashmap + 1);
     for (size_t i = self_private->current_bucket + 1; i < private->capacity; i++) {
         if (private->buckets[i]) {
             return true;
@@ -139,24 +125,24 @@ bool iter_has_next(hashmap_iterator_t self)
     return false;
 }
 
-hashmap_entry_t iter_next(hashmap_iterator_t self)
+MapEntry *hashmap_iter_next(MapIterator *self)
 {
-    hashmap_iterator_private *iter = (hashmap_iterator_private *)(self + 1);
+    MapIterator_private *iter = (MapIterator_private *)(self + 1);
 
-    entry_t * current_entry = (entry_t *)iter->current_entry;
+    MapEntry_private *current_entry = (MapEntry_private*)iter->current_entry;
     // If there's a next item in the current chain, move to it.
     if (current_entry && current_entry->next) {
-        iter->current_entry = (hashmap_entry_t)current_entry->next;
-        return iter->current_entry;
+        iter->current_entry = current_entry->next;
+        return (MapEntry*)iter->current_entry;
     }
 
     // Otherwise, move to the next non-empty bucket.
-    hashmap_private *private = (hashmap_private *)(iter->hashmap + 1);
+    HashMap_private *private = (HashMap_private *)(iter->hashmap + 1);
     for (size_t i = iter->current_bucket + 1; i < private->capacity; i++) {
         if (private->buckets[i]) {
             iter->current_bucket = i;
-            iter->current_entry = (hashmap_entry_t)private->buckets[i];
-            return iter->current_entry;
+            iter->current_entry = private->buckets[i];
+            return (MapEntry*)iter->current_entry;
         }
     }
 
@@ -164,61 +150,55 @@ hashmap_entry_t iter_next(hashmap_iterator_t self)
     return NULL;
 }
 
-hashmap_iterator_t iter(hashmap_t self)
+MapIterator *hashmap_iter(HashMap *self)
 {
-    hashmap_iterator_t iter = malloc(sizeof(hashmap_iterator) + sizeof(hashmap_iterator_private));
+    MapIterator *iter = malloc(sizeof(MapIterator) + sizeof(MapIterator_private));
     if (!iter) return NULL;
 
-    iter->has_next = iter_has_next;
-    iter->next = iter_next;
+    iter->has_next = hashmap_iter_has_next;
+    iter->next = hashmap_iter_next;
 
-    hashmap_iterator_private *private = (hashmap_iterator_private *)(iter + 1);
-    hashmap_private *map_private = (hashmap_private *)(self + 1);
-    private->current_entry = (hashmap_entry_t)map_private->buckets[0];
+    MapIterator_private *private = (MapIterator_private *)(iter + 1);
+    HashMap_private *map_private = (HashMap_private *)(self + 1);
+    private->current_entry = map_private->buckets[0];
     private->hashmap = self;
     private->current_bucket = -1;
 
     return iter;
 }
 
-hashmap_t hashmap_new(
-        size_t (*hash_f)(const void *),
-        int (*cmp_f)(const void *, const void *),
-        void (*print_f)(const void *, const void *)
-        )
+HashMap *hashmap_new(hash_func_t hash_f, cmp_func_t cmp_f)
 {
-    hashmap_t map = malloc(sizeof(hashmap) + sizeof(hashmap_private));
+    HashMap *map = malloc(sizeof(HashMap) + sizeof(HashMap_private));
     if (!map) return NULL;
-    map->size = size;
-    map->put = put;
-    map->get = get_impl;
-    map->print = print_impl;
-    map->iter = iter;
+    map->size = hashmap_size;
+    map->put = hashmap_put;
+    map->get = hashmap_get;
+    map->iter = hashmap_iter;
 
-    hashmap_private *private = (hashmap_private *)(map + 1);
+    HashMap_private *private = (HashMap_private *)(map + 1);
     private->size = 0;
     private->capacity = DEFAULT_CAPACITY;
     private->hash = get_or_default(hash_f, default_hash);
     private->cmp = get_or_default(cmp_f, default_cmp);
-    private->print = get_or_default(print_f, default_print);
-    private->buckets = calloc(DEFAULT_CAPACITY, sizeof(entry_t *));
+    private->buckets = calloc(DEFAULT_CAPACITY, sizeof(MapEntry **));
 
     return map;
 }
 
-hashmap_t hashmap_default()
+HashMap *hashmap_default()
 {
-    return hashmap_new(NULL, NULL, NULL);
+    return hashmap_new(NULL, NULL);
 }
 
-void hashmap_free(hashmap_t map)
+void hashmap_free(HashMap *map)
 {
-    hashmap_private *private = (hashmap_private *)(map + 1);
+    HashMap_private *private = (HashMap_private *)(map + 1);
 
     for (size_t i = 0; i < private->capacity; i++) {
-        entry_t *entry = private->buckets[i];
+        MapEntry_private *entry = private->buckets[i];
         while (entry) {
-            entry_t *next = entry->next;
+            MapEntry_private *next = entry->next;
             free(entry);
             entry = next;
         }

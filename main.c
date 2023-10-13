@@ -1,5 +1,6 @@
 #include <stdio.h>
 
+#include "collections/HashMap.h"
 #include "collections/String.h"
 #include "tests/mod.c"
 
@@ -9,38 +10,35 @@
 
 int main(int argc, char *argv[])
 {
+    printf("Running tests...\n");
     run_all_tests();
 
-    Engine_t engine = engine_new("templates/index.html");
+    printf("Creating engine...\n");
+    Engine *engine = engine_new("templates/index.html");
 
-    Context_t ctx = context_new();
-    ctx->insert(ctx, "who", "World");
-    ctx->insert(ctx, "param", "lol");
-    ctx->insert(ctx, "whoo", "das");
+    printf("Creating context...\n");
+    Context *ctx = context_new();
+    printf("Inserting values...\n");
+    ctx->insert(ctx, string_new_from_cstr("who"), string_new_from_cstr("World"));
+    ctx->insert(ctx, string_new_from_cstr("param"), string_new_from_cstr("lol"));
+    ctx->insert(ctx, string_new_from_cstr("cringe"), string_new_from_cstr("das"));
 
-
-    // String_t rendered_page = engine->render(engine, ctx);
-    // engine->preprocess(engine);
-    // String_t optimized_rendered_page = engine->optimized_render(engine, ctx);
-    clock_t start, end;
-
-    start = clock();
-    for (int i = 0; i < 100000; i++) {
-        String_t rendered_page = engine->render(engine, ctx);
-    }
-    end = clock();
-    double non_optimized_time_taken = ((double) end - start) / CLOCKS_PER_SEC;
-    
-    start = clock();
     engine->preprocess(engine);
-    for (int i = 0; i < 100000; i++) {
-        String_t optimized_rendered_page = engine->optimized_render(engine, ctx);
-    }
-    end = clock();
-    double optimized_time_taken = ((double) end - start) / CLOCKS_PER_SEC;
+    String *rendered_page = engine->optimized_render(engine, ctx);
+    printf("Rendered page: %s\n", rendered_page->as_cstr(rendered_page));
+    //clock_t start, end;
 
-    printf("Non optimized time: %f seconds\n", non_optimized_time_taken);
-    printf("Optimized time: %f seconds\n", optimized_time_taken);
+    //start = clock();
+    //printf("Preprocessing...\n");
+    //engine->preprocess(engine);
+    //printf("Rendering...\n");
+    //for (int i = 0; i < 100000; i++) {
+    //    String *optimized_rendered_page = engine->optimized_render(engine, ctx);
+    //}
+    //end = clock();
+    //double optimized_time_taken = ((double) end - start) / CLOCKS_PER_SEC;
+
+    //printf("Optimized time: %f seconds\n", optimized_time_taken);
 
     return 0;
 }

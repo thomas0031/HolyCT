@@ -5,152 +5,115 @@
 #include <stddef.h>
 
 typedef struct String String;
-typedef String* String_t;
 typedef struct Slice Slice;
-typedef Slice* Slice_t;
+
+struct String {
+    size_t (*len)(const String *self);
+    size_t (*capacity)(const String *self);
+    str_t (*as_cstr)(const String *self);
+    Slice *(*get_slice)(const String *self, size_t from, size_t to);
+    void (*push)(String *self, char c);
+    void (*push_str)(String *self, void *str);
+    int (*compare)(const String *self, const String *other);
+    String *(*replace)(String *self, const str_t from, const str_t to);
+    size_t (*find)(const String *self, const str_t substr);
+};
 
 /**
- * Creates a new string with the default capacity.
+ * The default string.
+ */
+String *string_default();
+
+/**
+ * Create a new string with a capacity.
+ *
+ * @param capacity The capacity of the string.
  *
  * @return The new string.
  */
-String_t string_default(void);
+String *string_with_capacity(size_t capacity);
 
 /**
- * Creates a new string with the given capacity.
+ * Create a new string from a C string.
  *
- * @param  capacity The capacity of the string.
+ * @param from The C string to create the string from.
  *
  * @return The new string.
  */
-String_t string_with_capacity(size_t capacity);
+String *string_new_from_cstr(const str_t from);
 
 /**
- * Creates a new string from the given c string.
+ * Create a new string from a string.
  *
- * @param  cstr The c string to create the string from.
+ * @param from The string to create the string from.
  *
  * @return The new string.
  */
-String_t string_from_cstr(const str_t cstr);
+String *string_new_from_string(const String *from);
 
 /**
- * Creates a new string from the given string.
+ * Pushes c string to the end of the string.
  *
- * @param  str The string to create the string from.
- *
- * @return The new string.
+ * @param self The string to push to.
+ * @param str The c string to push.
  */
-void string_free(String_t str);
+void string_push_cstr(String *self, const char* str);
 
 /**
- * Returns the length of the string.
+ * Pushes string to the end of the string.
  *
- * @param  str The string.
- *
- * @return The length of the string.
+ * @param self The string to push to.
+ * @param str The string to push.
  */
-size_t string_len(String_t str);
+void string_push_string(String *self, const String *str);
+
+int slice_find(const Slice *self, const char *from);
+
+String *slice_to_string(const Slice *self);
+
+void slice_free(Slice *self);
 
 /**
- * Returns the capacity of the string.
+ * A default hash function for strings.
  *
- * @param  str The string.
+ * @param  key The string to hash.
  *
- * @return The capacity of the string.
+ * @return The hash of the string.
  */
-size_t string_cap(String_t str);
+size_t hash_string(const void *key);
 
 /**
- * Returns the item at the given index.
+ * A default compare function for strings.
  *
- * @param  str   The string.
- * @param  index The index of the item.
+ * @param  a The first string.
+ * @param  b The second string.
  *
- * @return The item at the given index.
+ * @return < 0 if a < b, 0 if a == b, > 0 if a > b.
  */
-int string_cmp(String_t a, String_t b);
+static inline int cmp_string(const void *a, const void *b)
+{
+    return ((const String *)a)->compare((const String *)a, (const String *)b);
+}
 
-/**
- * Returns the item at the given index.
- *
- * @param  str   The string.
- * @param  index The index of the item.
- *
- * @return The item at the given index.
- */
-void string_append(String_t str, const str_t item);
 
-/**
- * Returns the first index of the given substring in the given string
- * starting from the given index.
- *
- * @param  str    The string to search in.
- * @param  substr The substring to search for.
- * @param  start  The index to start searching from.
- *
- * @return The first index of the substring in the string, or -1 if the
- *        substring is not in the string.
- */
-size_t string_find_from(String_t str, const str_t substr, size_t start);
+#define string_new(from) \
+    _Generic((from), \
+        char*: string_new_from_cstr, \
+        const char*: string_new_from_cstr, \
+        char[]: string_new_from_cstr, \
+        const char[]: string_new_from_cstr, \
+        String_t: string_new_from_string, \
+        const String_t: string_new_from_string, \
+    )(from)
 
-/**
- * Returns the first index of the given substring in the given string
- *
- * @param  str    The string to search in.
- * @param  substr The substring to search for.
- *
- * @return The first index of the substring in the string, or -1 if the
- *        substring is not in the string.
- */
-size_t string_find(String_t str, const str_t substr);
+#define push_str(self, str) push_str, \
+    _Generic((str), \
+        char*:          string_push_cstr,   \
+        const char*:    string_push_cstr,   \
+        String*:       string_push_string,  \
+        const String*: string_push_string  \
+    )(self, str)
 
-/**
- * Returns slice of the given string from start to end.
- *
- * @param  str   The string to slice.
- * @param  start The start index of the slice.
- * @param  end   The end index of the slice.
- *
- * @return The slice of the string.
- */
-Slice_t string_slice(String_t str, size_t start, size_t end);
-
-/**
- * Returns the string with the given substring replaced with the given
- * string.
- *
- * @param  str The string to replace in.
- * @param  from The substring to replace.
- * @param  to The string to replace with.
- *
- * @return The string with the substring replaced.
- */
-String_t string_replace(String_t str, const str_t from, const str_t to);
-
-/**
- * Returns the string with the given substring replaced with the given
- * string.
- *
- * @param  str The string to replace in.
- * @param  from The substring to replace.
- * @param  to The string to replace with.
- *
- * @return The string with the substring replaced.
- */
-void string_print(String_t str);
-
-/**
- * Returns the string as a c string.
- *
- * @param  str The string.
- *
- * @return The string as a c string.
- */
-str_t string_as_cstr(String_t str);
-
-void string_slice_print(Slice_t slice);
-
-str_t string_slice_to_cstr(Slice_t slice);
+void print_string(String *s);
 
 #endif // !STRING_H

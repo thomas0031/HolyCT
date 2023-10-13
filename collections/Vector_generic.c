@@ -4,28 +4,27 @@
 
 #define DEFAULT_VEC_CAP 8
 
-typedef struct vector_private vector_private;
+typedef struct Vector_private vector_private;
 
-struct vector_private {
+struct Vector_private {
     size_t len;
     size_t cap;
     void **data;
-    print_1_func_t print;
 };
 
-size_t vector_generic_len(Vector_t self) {
+size_t vector_generic_len(const Vector *self) {
     vector_private *private = (vector_private *)(self + 1);
 
     return private->len;
 }
 
-size_t vector_generic_cap(Vector_t self) {
+size_t vector_generic_cap(const Vector *self) {
     vector_private *private = (vector_private *)(self + 1);
 
     return private->cap;
 }
 
-void vector_generic_push(Vector_t self, void *item) {
+void vector_generic_push(Vector *self, void *item) {
     vector_private *private = (vector_private *)(self + 1);
 
     if (private->len == private->cap) {
@@ -36,7 +35,7 @@ void vector_generic_push(Vector_t self, void *item) {
     private->data[private->len++] = item;
 }
 
-void* vector_generic_get(Vector_t self, size_t index) {
+void *vector_generic_get(const Vector *self, size_t index) {
     vector_private *private = (vector_private *)(self + 1);
 
     // TODO: need to think about error handling (would be nice to add result/option types)
@@ -45,7 +44,7 @@ void* vector_generic_get(Vector_t self, size_t index) {
     return private->data[index];
 }
 
-void *vector_generic_get_ptr(Vector_t self, size_t index) {
+void *vector_generic_get_ptr(Vector *self, size_t index) {
     vector_private *private = (vector_private *)(self + 1);
 
     if (index >= private->len) return NULL;
@@ -53,91 +52,56 @@ void *vector_generic_get_ptr(Vector_t self, size_t index) {
     return private->data[index];
 }
 
-void *vector_generic_get_ptr_raw(Vector_t self, size_t index)
+void *vector_generic_get_ptr_raw(Vector *self, size_t index)
 {
     vector_private *private = (vector_private *)(self + 1);
 
     return private->data + index;
 }
 
-void vector_generic_print(Vector_t self)
+void vector_generic_clear(Vector *self)
 {
     vector_private *private = (vector_private *)(self + 1);
 
-    putchar('[');
-    for (size_t i = 0; i < private->len; i++) {
-        private->print(private->data[i]);
-        if (i != private->len - 1) {
-            printf(", ");
-        }
-    }
-    putchar(']');
-}
-
-void vector_generic_clear(Vector_t self)
-{
-    vector_private *private = (vector_private *)(self + 1);
-
+    // TODO not correct
     for(int i = 0; i < private->len; ++i) free(private->data[i]);
 }
 
 // TODO remove when impl optional
-static const void *get_or_default(const void *optional, const void *default_value) {
+// TODO move to utils or even better add optional type
+static inline const void *get_or_default(const void *optional, const void *default_value) {
     return optional == NULL ? default_value : optional;
 }
 
-static void default_print(const void *item) {
-    printf("%p", item);
+Vector *vector_default() {
+    return vector_with_capacity(DEFAULT_VEC_CAP);
 }
 
-Vector_t vector_default(print_1_func_t print_f) {
-    Vector_t vec = malloc(sizeof(Vector) + sizeof(vector_private));
+Vector *vector_with_capacity(size_t capacity) {
+    Vector *vec = malloc(sizeof(Vector) + sizeof(vector_private));
     if (vec == NULL) return NULL;
 
     vec->len = vector_generic_len;
-    vec->cap = vector_generic_cap;
+    vec->capacity = vector_generic_cap;
     vec->push = vector_generic_push;
     vec->get = vector_generic_get;
     vec->get_ptr = vector_generic_get_ptr;
     vec->get_ptr_raw = vector_generic_get_ptr_raw;
-    vec->print = vector_generic_print;
-    vec->clear = vector_generic_clear;
-
-    vector_private *private = (vector_private *)(vec + 1);
-    private->len = 0;
-    private->cap = DEFAULT_VEC_CAP;
-    private->data = malloc(sizeof(void*) * DEFAULT_VEC_CAP);
-    private->print = get_or_default(print_f, default_print);
-    // TODO need also eq function
-
-    return vec;
-}
-
-Vector_t vector_with_capacity(size_t capacity, print_1_func_t print_f) {
-    Vector_t vec = malloc(sizeof(Vector) + sizeof(vector_private));
-    if (vec == NULL) return NULL;
-
-    vec->len = vector_generic_len;
-    vec->cap = vector_generic_cap;
-    vec->push = vector_generic_push;
-    vec->get = vector_generic_get;
-    vec->get_ptr = vector_generic_get_ptr;
-    vec->get_ptr_raw = vector_generic_get_ptr_raw;
-    vec->print = vector_generic_print;
     vec->clear = vector_generic_clear;
 
     vector_private *private = (vector_private *)(vec + 1);
     private->len = 0;
     private->cap = capacity;
     private->data = malloc(sizeof(void*) * capacity);
-    private->print = get_or_default(print_f, default_print);
+    // TODO need also eq function
 
     return vec;
 }
 
-void vector_free(Vector_t vec) {
+void vector_free(Vector *vec) {
     vector_private *private = (vector_private *)(vec + 1);
 
+    // TODO not correct
     free(private->data);
     free(vec);
 }

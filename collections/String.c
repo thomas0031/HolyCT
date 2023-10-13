@@ -1,11 +1,16 @@
 #include "String.h"
 #include "Vector_typed.h"
 
+#include <stddef.h>
 #include <stdlib.h>
 #include <string.h>
 #include <stdio.h>
 
-struct String {
+#define DEFAULT_STRING_CAPACITY 16
+
+typedef struct String_private String_private;
+
+struct String_private {
     Vector_u8_t data;
 };
 
@@ -14,88 +19,120 @@ struct Slice {
     size_t len;
 };
 
-String_t string_default(void)
+size_t hash_string(const void *key)
 {
-    String_t str = malloc(sizeof(String));
+    const String *str = key;
+    String_private *priv = (String_private *)(str + 1);
 
-    str->data = vector_u8_default();
-
-    return str;
-}
-
-String_t string_with_capacity(size_t cap)
-{
-    String_t str = malloc(sizeof(String));
-
-    str->data = vector_u8_with_capacity(cap);
-
-    return str;
-}
-
-String_t string_from_cstr(const str_t cstr)
-{
-    String_t str = string_default();
-
-    for (size_t i = 0; cstr[i] != '\0'; ++i) {
-        str->data->push(str->data, cstr[i]);
+    size_t hash = 5381;
+    for (size_t i = 0; i < priv->data->len(priv->data); ++i) {
+        hash = ((hash << 5) + hash) + priv->data->get(priv->data, i);
     }
 
-    return str;
+    return hash;
 }
 
-void string_free(String_t str)
+void string_push_cstr(String *self, const char* str)
 {
-    vector_u8_free(str->data);
+    String_private *priv = (String_private *)(self + 1);
+
+    for (size_t i = 0; str[i] != '\0'; ++i) {
+        priv->data->push(priv->data, str[i]);
+    }
+}
+
+void string_push_string(String *self, const String *str)
+{
+    String_private *priv = (String_private *)(self + 1);
+    String_private *str_priv = (String_private *)(str + 1);
+
+    for (size_t i = 0; i < str_priv->data->len(str_priv->data); ++i) {
+        priv->data->push(priv->data, str_priv->data->get(str_priv->data, i));
+    }
+}
+
+void string_free(String *str)
+{
+    String_private *priv = (String_private *)(str + 1);
+
+    vector_u8_free(priv->data);
     free(str);
 
     str = NULL;
 }
 
-size_t string_len(String_t str)
+size_t string_len(const String *str)
 {
-    return str->data->len(str->data);
+    String_private *priv = (String_private *)(str + 1);
+
+    return priv->data->len(priv->data);
 }
 
-size_t string_cap(String_t str)
+size_t string_capacity(const String *str)
 {
-    return str->data->cap(str->data);
+    String_private *priv = (String_private *)(str + 1);
+
+    return priv->data->cap(priv->data);
 } 
 
-int string_cmp(String_t a, String_t b)
+void string_push(String *str, char c)
 {
-    if (string_len(a) != string_len(b)) {
-        return string_len(a) - string_len(b);
-    }
+    String_private *priv = (String_private *)(str + 1);
 
-    size_t len = string_len(a);
-    for (size_t i = 0; i < len; ++i) {
-        u8 a_byte = a->data->get(a->data, i);
-        u8 b_byte = b->data->get(b->data, i);
-        if (a_byte != b_byte) {
-            return a_byte - b_byte;
+    priv->data->push(priv->data, c);
+}
+
+int string_compare(const String *self, const String *other)
+{
+    size_t self_len = string_len(self);
+    size_t other_len = string_len(other);
+
+    if (self_len != other_len) return self_len - other_len;
+
+    String_private *self_priv = (String_private *)(self + 1);
+    String_private *other_priv = (String_private *)(other + 1);
+
+    for (size_t i = 0; i < self_len; ++i) {
+        if (self_priv->data->get(self_priv->data, i) != other_priv->data->get(other_priv->data, i)) {
+            return self_priv->data->get(self_priv->data, i) - other_priv->data->get(other_priv->data, i);
         }
     }
 
     return 0;
 }
 
-void string_append(String_t str, const str_t cstr)
+str_t string_as_cstr(const String *str)
 {
-    for (size_t i = 0; cstr[i] != '\0'; ++i) {
-        str->data->push(str->data, cstr[i]);
-    }
+    String_private *priv = (String_private *)(str + 1);
+
+    return (str_t)priv->data->get_ptr(priv->data, 0);
+}
+
+Slice *string_get_slice(const String *str, size_t start, size_t end)
+{
+    if (start > end || end > string_len(str)) return NULL;
+
+    Slice *slice = malloc(sizeof(Slice));
+    if (!slice) return NULL;
+
+    String_private *priv = (String_private *)(str + 1);
+
+    slice->len = end - start;
+    slice->ptr = (str_t)priv->data->get_ptr(priv->data, start);
+
+    return slice;
 }
 
 // TODO: optimize this, currently O(n*m) where n is the length of the string
 // and m is the length of the substring
-size_t string_find_from(String_t str, const str_t substr, size_t start)
+size_t string_find(const String *self, const str_t substr)
 {
-    size_t len = string_len(str);
+    String_private *str = (String_private *)(self + 1);
+
+    size_t len = str->data->len(str->data);
     size_t sub_len = strlen(substr);
 
-    if (start > len - sub_len + 1) return -1;
-
-    for (size_t i = start; i < len; ++i) {
+    for (size_t i = 0; i < len; ++i) {
         if (str->data->get(str->data, i) == substr[0]) {
             size_t j = 0;
             for (; j < sub_len; ++j) {
@@ -108,42 +145,69 @@ size_t string_find_from(String_t str, const str_t substr, size_t start)
     return -1;
 }
 
-size_t string_find(String_t str, const str_t substr)
+int slice_find(const Slice *self, const char *substr)
 {
-    return string_find_from(str, substr, 0);
+    size_t len = self->len;
+    size_t sub_len = strlen(substr);
+
+    for (size_t i = 0; i < len; ++i) {
+        if (self->ptr[i] == substr[0]) {
+            size_t j = 0;
+            for (; j < sub_len; ++j) {
+                if (self->ptr[i + j] != substr[j]) break;
+            }
+            if (j == sub_len) return i;
+        }
+    }
+
+    return -1;
 }
 
-Slice_t string_slice(String_t str, size_t start, size_t end)
+String *slice_to_string(const Slice *self)
 {
-    if (start > end || end > string_len(str)) return NULL;
+    String *str = string_default();
+    if (!str) return NULL;
 
-    Slice_t slice = malloc(sizeof(Slice));
+    String_private *priv = (String_private *)(str + 1);
 
-    slice->ptr = str->data->get_ptr(str->data, start);  // TODO check
-    slice->len = end - start;
+    for (size_t i = 0; i < self->len; ++i) {
+        priv->data->push(priv->data, self->ptr[i]);
+    }
 
-    return slice;
+    return str;
 }
 
-String_t string_replace(String_t str, const str_t from, const str_t to)
+void slice_free(Slice *self)
 {
-    size_t len = string_len(str);
+    free(self);
+    self = NULL;
+}
+
+String *string_replace(String *self, const str_t from, const str_t to)
+{
+    size_t len = string_len(self);
     size_t from_len = strlen(from);
     size_t to_len = strlen(to);
 
     // Count the occurrences of 'from' in 'str'
     int count = 0;
     size_t tmp_from_idx = 0;
-    while ((tmp_from_idx = string_find_from(str, from, tmp_from_idx) + 1)) count++;
+    while (1) {
+        Slice *slice = string_get_slice(self, tmp_from_idx, len - tmp_from_idx);
+        int slice_from_idx = slice_find(slice, from);
+        if (slice_from_idx == -1) break;
+        tmp_from_idx += slice_from_idx;
+        slice_free(slice);
+    }
 
     // Calculate the new string length
     size_t new_len = len + count * (to_len - from_len);
     
     // Allocate memory for the new string data
-    String_t new_str = string_with_capacity(new_len);
+    String *new_str = string_with_capacity(new_len);
 
     tmp_from_idx = 0;
-    str_t src = string_as_cstr(str);
+    str_t src = string_as_cstr(self);
     str_t dst = string_as_cstr(new_str);
     str_t initial_dst = dst;
 
@@ -163,39 +227,72 @@ String_t string_replace(String_t str, const str_t from, const str_t to)
         }
     }
 
-    string_append(new_str, initial_dst);    // FAIL TOOT
+    new_str->push_str(new_str, initial_dst);
 
     return new_str;
 }
 
-void string_print(String_t str)
+String *string_default(void)
 {
-    putchar('"');
-    for (size_t i = 0; i < string_len(str); ++i) {
-        putchar(str->data->get(str->data, i));
-    }
-    putchar('"');
+    return string_with_capacity(DEFAULT_STRING_CAPACITY);
 }
 
-str_t string_as_cstr(String_t str)
+String *string_with_capacity(size_t capacity)
 {
-    return str->data->get_ptr_raw(str->data, 0);
+    String *str = malloc(sizeof(String) + sizeof(String_private));
+    if (!str) return NULL;
+    str->len = string_len;
+    str->capacity = string_capacity;
+    str->push = string_push;
+    str->compare = string_compare;
+    str->as_cstr = string_as_cstr;
+    str->get_slice = string_get_slice;
+    str->replace = string_replace;
+    str->find = string_find;
+
+    String_private *priv = (String_private *)(str + 1);
+    priv->data = vector_u8_with_capacity(capacity);
+
+    return str;
 }
 
-void string_slice_print(Slice_t slice)
+String *string_new_from_cstr(const str_t from)
 {
-    for(size_t i = 0; i < slice->len; ++i) {
-        putchar(slice->ptr[i]);
+    String *str = string_default();
+    if (!str) return NULL;
+
+    String_private *priv = (String_private *)(str + 1);
+
+    for (size_t i = 0; from[i] != '\0'; ++i) {
+        priv->data->push(priv->data, from[i]);
     }
+
+    return str;
 }
 
-str_t string_slice_to_cstr(Slice_t slice) 
+String *string_new_from_string(const String *from)
 {
-    str_t result = malloc(sizeof(char) * slice->len);
+    String *str = string_default();
+    if (!str) return NULL;
 
-    for(size_t i = 0; i < slice->len; ++i) {
-        result[i] = slice->ptr[i];
+    String_private *priv = (String_private *)(str + 1);
+    String_private *from_priv = (String_private *)(from + 1);
+
+    for (size_t i = 0; i < from_priv->data->len(from_priv->data); ++i) {
+        priv->data->push(priv->data, from_priv->data->get(from_priv->data, i));
     }
 
-    return result;
+    return str;
+}
+
+void print_string(String *s)
+{
+    String_private *private = (String_private *)(s + 1);
+
+    for (size_t i = 0; i < private->data->len(private->data); ++i) {
+        printf("%c", private->data->get(private->data, i));
+    }
+
+    printf("\n");
+
 }

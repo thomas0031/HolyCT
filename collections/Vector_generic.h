@@ -5,7 +5,6 @@
 #include <stddef.h>
 
 typedef struct Vector Vector;
-typedef Vector* Vector_t;
 
 struct Vector {
     /**
@@ -15,7 +14,7 @@ struct Vector {
      *
      * @return The length of the vector.
      */
-    size_t (*len)(Vector_t self);
+    size_t (*len)(const Vector *self);
 
     /**
      * Returns the capacity of the vector.
@@ -24,7 +23,7 @@ struct Vector {
      *
      * @return The capacity of the vector.
      */
-    size_t (*cap)(Vector_t self);
+    size_t (*capacity)(const Vector *self);
 
     /**
      * Pushes the given item to the end of the vector.
@@ -32,7 +31,7 @@ struct Vector {
      * @param  self  The vector.
      * @param  item The item to push.
      */
-    void (*push)(Vector_t self, void *item);
+    void (*push)(Vector *self, void *item);
 
     /**
      * Returns the item at the given index.
@@ -42,7 +41,7 @@ struct Vector {
      *
      * @return The item at the given index.
      */
-    void * (*get)(Vector_t self, size_t index);
+    void * (*get)(const Vector *self, size_t index);
 
     /**
      * Returns the pointer to the item at the given index.
@@ -52,7 +51,7 @@ struct Vector {
      *
      * @return The pointer to the item at the given index.
      */
-    void * (*get_ptr)(Vector_t self, size_t index);
+    void * (*get_ptr)(Vector *self, size_t index);
 
     // TODO: SORRYYY
     /**
@@ -63,39 +62,22 @@ struct Vector {
      *
      * @return The pointer to the item at the given index.
      */
-    void * (*get_ptr_raw)(Vector_t self, size_t index);
-
-    /**
-     * Prints the vector.
-     *
-     * @param  self  The vector.
-     */
-    void (*print)(Vector_t self);
+    void * (*get_ptr_raw)(Vector *self, size_t index);
 
     /**
     * Clear the vector.
     *
     * @param self the vector
     */
-    void (*clear)(Vector_t self);
+    void (*clear)(Vector *self);
 };
-
-// TODO move to utils
-/**
- * Prints elements of the vector.
- *
- * @param  item The item to print.
- */
-typedef void (*print_1_func_t)(const void * item);
 
 /**
  * Creates a new vector with the default capacity.
  *
  * @return The new vector.
  */
-Vector_t vector_default(
-        print_1_func_t print_func
-        );
+Vector *vector_default();
 
 /**
  * Creates a new vector with the given capacity.
@@ -104,16 +86,13 @@ Vector_t vector_default(
  *
  * @return The new vector.
  */
-Vector_t vector_with_capacity(
-        size_t capacity,
-        print_1_func_t print_func
-        );
+Vector *vector_with_capacity(size_t capacity);
 
 /**
  * Frees the vector.
  *
  * @param  vec The vector.
  */
-void vector_free(Vector_t vec);
+void vector_free(Vector *vec);
 
 #endif // !VECTOR_GENERIC_H

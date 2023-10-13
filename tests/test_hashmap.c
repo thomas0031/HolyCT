@@ -5,7 +5,7 @@
 
 void test_hashmap_default(void)
 {
-    hashmap_t map = hashmap_default();
+    HashMap *map = hashmap_default();
 
     assert(map->size(map) == 0);
 
@@ -16,7 +16,7 @@ void test_hashmap_default(void)
 
 void test_hashmap_put(void)
 {
-    hashmap_t map = hashmap_default();
+    HashMap *map = hashmap_default();
 
     const char *key1 = "hello";
     bool put1 = map->put(map, key1, "world");
@@ -47,7 +47,7 @@ void test_hashmap_with_dummy_hash_cmp(void)
         return 0;
     }
 
-    hashmap_t map = hashmap_new(dummy_hash, dummy_cmp, NULL);
+    HashMap *map = hashmap_new(dummy_hash, dummy_cmp);
 
     const char *key1 = "hello";
     bool put1 = map->put(map, key1, "world");
@@ -69,7 +69,7 @@ void test_hashmap_with_dummy_hash_cmp(void)
 
 void test_hashmap_get(void)
 {
-    hashmap_t map = hashmap_default();
+    HashMap *map = hashmap_default();
 
     const char *key = "hello";
     char *value = "world";
@@ -88,7 +88,7 @@ void test_hashmap_get(void)
 
 void test_hashmap_iterator(void)
 {
-    hashmap_t map = hashmap_default();
+    HashMap *map = hashmap_default();
 
     map->put(map, "hello", "world");
     map->put(map, "hello2", "world2");
@@ -97,7 +97,7 @@ void test_hashmap_iterator(void)
     map->put(map, "hello5", "world5");
     map->put(map, "hello6", "world6");
 
-    hashmap_iterator_t iter = map->iter(map);
+    MapIterator *iter = map->iter(map);
     const size_t expected = 6;
     size_t actual = 0;
 
@@ -109,6 +109,8 @@ void test_hashmap_iterator(void)
     assert(expected == actual);
 
     hashmap_free(map);
+
+    printf("test_hashmap_iterator passed\n");
 }
 
 

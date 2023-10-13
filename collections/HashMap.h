@@ -1,19 +1,18 @@
 #ifndef HASHMAP_H
 #define HASHMAP_H
 
+#include "../global/types.h"
+#include "String.h"
 #include <stddef.h>
 #include <stdbool.h>
 #include <string.h>
 #include <stdio.h>
 
-typedef struct hashmap_entry hashmap_entry;
-typedef hashmap_entry *hashmap_entry_t;
-typedef struct hashmap_iterator hashmap_iterator;
-typedef hashmap_iterator *hashmap_iterator_t;
-typedef struct hashmap hashmap;
-typedef hashmap *hashmap_t;
+typedef struct MapEntry MapEntry;
+typedef struct MapIterator MapIterator;
+typedef struct HashMap HashMap;
 
-struct hashmap_entry {
+struct MapEntry {
     /**
      * Returns the key of the entry.
      *
@@ -21,7 +20,7 @@ struct hashmap_entry {
      *
      * @return The key of the entry.
      */
-    void * (*key)(struct hashmap_entry *self);
+    void * (*key)(const MapEntry *self);
     /**
      * Returns the value of the entry.
      *
@@ -29,10 +28,10 @@ struct hashmap_entry {
      *
      * @return The value of the entry.
      */
-    void * (*value)(struct hashmap_entry *self);
+    void * (*value)(const MapEntry *self);
 };
 
-struct hashmap_iterator {
+struct MapIterator {
     /**
      * Returns true if there are more entries in the hashmap.
      *
@@ -40,7 +39,7 @@ struct hashmap_iterator {
      *
      * @return true if there are more entries in the hashmap, false otherwise.
      */
-    bool (*has_next)(struct hashmap_iterator *self);
+    bool (*has_next)(const MapIterator *self);
 
     /**
      * Returns the next entry in the hashmap.
@@ -49,10 +48,10 @@ struct hashmap_iterator {
      *
      * @return The next entry in the hashmap.
      */
-    hashmap_entry_t (*next)(struct hashmap_iterator *self);
+    MapEntry* (*next)(MapIterator *self);
 };
 
-struct hashmap {
+struct HashMap {
     /**
      * Returns the number of key-value pairs in the hashmap.
      *
@@ -60,7 +59,7 @@ struct hashmap {
      *
      * @return The number of key-value pairs in the hashmap.
      */
-    size_t (*size)(struct hashmap *self);
+    size_t (*size)(const HashMap *self);
 
     /**
      * Inserts a new key-value pair into the hashmap.
@@ -72,7 +71,7 @@ struct hashmap {
      *
      * @return true if the insertion/overwrite was successful, false otherwise.
      */
-    bool (*put)(struct hashmap *self, const void *key, void *data);
+    bool (*put)(HashMap *self, const void *key, void *data);
 
     /**
      * Gets the data associated with a key.
@@ -82,14 +81,7 @@ struct hashmap {
      *
      * @return The data associated with the key, or NULL if the key does not exist.
      */
-    void * (*get)(struct hashmap *self, const void *key);
-
-    /**
-     * Prints the contents of the hashmap to stdout.
-     *
-     * @param map The hashmap to print.
-     */
-    void  (*print)(struct hashmap *self);
+    void * (*get)(const HashMap *self, const void *key);
 
     /**
      * Returns iterator over the entries in the hashmap.
@@ -98,7 +90,7 @@ struct hashmap {
      *
      * @return An iterator over the entries in the hashmap.
      */
-    hashmap_iterator* (*iter)(struct hashmap *self);
+    MapIterator* (*iter)(HashMap *self);
 };
 
 /**
@@ -120,66 +112,12 @@ typedef size_t (*hash_func_t)(const void *);
  */
 typedef int (*cmp_func_t)(const void *, const void *);
 
-// TODO move to utils.h
-/**
- * A function that prints a key-value pair to stdout.
- *
- * @param key   The key to print.
- * @param value The value to print.
- */
-typedef void (*print_2_func_t)(const void *, const void *);
-
-// TODO move to utils.h
-/**
- * A default hash function for strings.
- *
- * @param  key The string to hash.
- *
- * @return The hash of the string.
- */
-static size_t hash_str(const void *key)
-{
-    size_t hash = 5381;
-    const char *str = (const char *)key;
-    int c;
-
-    while ((c = *str++)) hash = ((hash << 5) + hash) + c;
-
-    return hash;
-}
-
-// TODO move to utils.h
-/**
- * A default compare function for strings.
- *
- * @param  a The first string.
- * @param  b The second string.
- *
- * @return < 0 if a < b, 0 if a == b, > 0 if a > b.
- */
-static int cmp_str(const void *a, const void *b)
-{
-    return strcmp((char *)a, (char *)b);
-}
-
-// TODO move to utils.h
-/**
- * A default print function for strings.
- *
- * @param key   The key to print.
- * @param value The value to print.
- */
-static void print_str(const void *key, const void *value)
-{
-    printf("%s: %s\n", (const char *)key, (const char *)value);
-}
-
 /**
  * Creates a new hashmap with the default hash and compare functions.
  *
  * @return A new hashmap.
  */
-hashmap_t hashmap_default(void);
+HashMap *hashmap_default(void);
 
 
 /**
@@ -191,17 +129,13 @@ hashmap_t hashmap_default(void);
  *
  * @return A new hashmap.
  */
-hashmap_t hashmap_new(
-        hash_func_t hash_f,
-        cmp_func_t cmp_f,
-        print_2_func_t print_f
-        );
+HashMap *hashmap_new(hash_func_t hash_f, cmp_func_t cmp_f);
 
 /**
  * Frees the memory used by the hashmap.
  *
  * @param map The hashmap to free.
  */
-void hashmap_free(hashmap_t map);
+void hashmap_free(HashMap *map);
 
 #endif // HASHMAP_H
