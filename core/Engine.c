@@ -14,25 +14,14 @@ struct Context_private {
     HashMap *map;
 };
 
-
-typedef enum {
-    STATIC,
-    DYNAMIC,
-} SegmentType;
-
-struct Segment {
-    SegmentType type;
-    String *value;
-};
-
-void context_insert(Context *self, String *key, String *value) 
+void context_insert(Context *self, String *key, Segment *value) 
 {
     Context_private *data = (Context_private *)(self + 1);
 
     data->map->put(data->map, key, value);
 }
 
-String *context_get(const Context *self, String *key)
+Segment *context_get(const Context *self, String *key)
 {
     Context_private *data = (Context_private *)(self + 1);
 
@@ -107,21 +96,21 @@ void engine_preprocess(Engine *self)
         String *key = slice_to_string(slice_trim(key_slice));
 
         Segment *static_segment = malloc(sizeof(Segment));
-        static_segment->type = STATIC;
+        static_segment->type = SEGMENT_STATIC;
 
-        static_segment->value = slice_to_string(private->template->get_slice(private->template, last_pos, start));
+        static_segment->data.staticSegment.value = slice_to_string(private->template->get_slice(private->template, last_pos, start));
         segments->push(segments, static_segment);
         
         Segment *dynamic_segment = malloc(sizeof(Segment));
-        dynamic_segment->type = DYNAMIC;
-        dynamic_segment->value = key;
+        dynamic_segment->type = SEGMENT_VARIABLE;
+        dynamic_segment->data.variableSegment.value = key;
         segments->push(segments, dynamic_segment);
 
         last_pos = end;
     }
     Segment *static_segment = malloc(sizeof(Segment));
-    static_segment->type = STATIC;
-    static_segment->value = slice_to_string(private->template->get_slice(private->template, last_pos, private->template->len(private->template)));
+    static_segment->type = SEGMENT_STATIC;
+    static_segment->data.staticSegment.value = slice_to_string(private->template->get_slice(private->template, last_pos, private->template->len(private->template)));
     segments->push(segments, static_segment);
 }
 
@@ -136,11 +125,11 @@ String *engine_optimized_render(const Engine *self, Context *ctx)
         const Segment *segment = segments->get(segments, i);
 
         switch (segment->type) {
-            case DYNAMIC:
-                rendered->push_str(rendered, ctx->get(ctx, segment->value));
+            case SEGMENT_VARIABLE:
+                rendered->push_str(rendered, ctx->get(ctx, segment->data.variableSegment.value)->data.staticSegment.value);
                 break;
-            case STATIC:
-                rendered->push_str(rendered, segment->value);
+            case SEGMENT_STATIC:
+                rendered->push_str(rendered, segment->data.staticSegment.value);
                 break;
             default:
                 // error;
@@ -165,4 +154,26 @@ Engine *engine_new(str_t path)
     private->segments = vector_default();
 
     return eng;
+}
+
+Segment *segment_new_static(str_t value)
+{
+    Segment *segment = malloc(sizeof(Segment));
+    if (!segment) return NULL;
+
+    segment->type = SEGMENT_STATIC;
+    segment->data.staticSegment.value = string_new_from_cstr(value);
+
+    return segment;
+}
+
+Segment *segment_new_variable(str_t value)
+{
+    Segment *segment = malloc(sizeof(Segment));
+    if (!segment) return NULL;
+
+    segment->type = SEGMENT_VARIABLE;
+    segment->data.variableSegment.value = string_new_from_cstr(value);
+
+    return segment;
 }

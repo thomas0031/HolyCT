@@ -19,9 +19,9 @@ int main(int argc, char *argv[])
     printf("Creating context...\n");
     Context *ctx = context_new();
     printf("Inserting values...\n");
-    ctx->insert(ctx, string_new_from_cstr("who"), string_new_from_cstr("World"));
-    ctx->insert(ctx, string_new_from_cstr("param"), string_new_from_cstr("lol"));
-    ctx->insert(ctx, string_new_from_cstr("cringe"), string_new_from_cstr("das"));
+    ctx->insert(ctx, string_new_from_cstr("who"), segment_new_static("World"));
+    ctx->insert(ctx, string_new_from_cstr("param"), segment_new_static("lol"));
+    ctx->insert(ctx, string_new_from_cstr("cringe"), segment_new_static("das"));
 
     engine->preprocess(engine);
     String *rendered_page = engine->optimized_render(engine, ctx);
