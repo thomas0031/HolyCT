@@ -294,5 +294,18 @@ void print_string(String *s)
     }
 
     printf("\n");
+}
 
+Slice *slice_trim(Slice *self)
+{
+    while (self->len > 0 && (self->ptr[0] == ' ' || self->ptr[0] == '\n')) {
+        self->ptr++;
+        self->len--;
+    }
+
+    while (self->len > 0 && (self->ptr[self->len - 1] == ' ' || self->ptr[self->len - 1] == '\n')) {
+        self->len--;
+    }
+
+    return self;
 }

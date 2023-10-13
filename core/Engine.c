@@ -104,7 +104,7 @@ void engine_preprocess(Engine *self)
         end += 2 + start;
 
         Slice *key_slice = private->template->get_slice(private->template, start + 2, end - 2);
-        String *key = slice_to_string(key_slice);
+        String *key = slice_to_string(slice_trim(key_slice));
 
         Segment *static_segment = malloc(sizeof(Segment));
         static_segment->type = STATIC;

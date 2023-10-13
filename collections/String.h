@@ -114,6 +114,9 @@ static inline int cmp_string(const void *a, const void *b)
         const String*: string_push_string  \
     )(self, str)
 
+// TODO move to String struct
 void print_string(String *s);
+
+Slice *slice_trim(Slice *self);
 
 #endif // !STRING_H
