@@ -1,5 +1,6 @@
 #include "Engine.h"
 
+#include <stdarg.h>
 #include <stddef.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -14,14 +15,45 @@ struct Context_private {
     HashMap *map;
 };
 
-void context_insert(Context *self, String *key, Segment *value) 
+typedef enum {
+    SEGMENT_STATIC,
+    SEGMENT_VARIABLE,
+    SEGMENT_LOOP
+} SegmentType;
+
+typedef struct {
+    String *value;
+} StaticSegment;
+
+typedef struct {
+    String *value;
+} VariableSegment;
+
+typedef struct {
+    String *var;
+    String *data;
+    Vector *segments;
+} LoopSegment;
+
+typedef union {
+    StaticSegment staticSegment;
+    VariableSegment variableSegment;
+    LoopSegment loopSegment;
+} SegmentData;
+
+typedef struct Segment {
+    SegmentType type;
+    SegmentData data;
+} Segment;
+
+void context_insert(Context *self, String *key, ContextValue *value) 
 {
     Context_private *data = (Context_private *)(self + 1);
 
     data->map->put(data->map, key, value);
 }
 
-Segment *context_get(const Context *self, String *key)
+ContextValue *context_get(const Context *self, String *key)
 {
     Context_private *data = (Context_private *)(self + 1);
 
@@ -126,7 +158,7 @@ String *engine_optimized_render(const Engine *self, Context *ctx)
 
         switch (segment->type) {
             case SEGMENT_VARIABLE:
-                rendered->push_str(rendered, ctx->get(ctx, segment->data.variableSegment.value)->data.staticSegment.value);
+                rendered->push_str(rendered, ctx->get(ctx, segment->data.variableSegment.value)->value.string);
                 break;
             case SEGMENT_STATIC:
                 rendered->push_str(rendered, segment->data.staticSegment.value);
@@ -156,24 +188,34 @@ Engine *engine_new(str_t path)
     return eng;
 }
 
-Segment *segment_new_static(str_t value)
+ContextValue *context_value_new_string(str_t value)
 {
-    Segment *segment = malloc(sizeof(Segment));
-    if (!segment) return NULL;
+    ContextValue *ctx_value = malloc(sizeof(ContextValue));
+    if (!ctx_value) return NULL;
 
-    segment->type = SEGMENT_STATIC;
-    segment->data.staticSegment.value = string_new_from_cstr(value);
+    ctx_value->type = CONTEXT_VALUE_STRING;
+    ctx_value->value.string = string_new_from_cstr(value);
 
-    return segment;
+    return ctx_value;
 }
 
-Segment *segment_new_variable(str_t value)
+ContextValue *context_value_new_vector(str_t value, ...)
 {
-    Segment *segment = malloc(sizeof(Segment));
-    if (!segment) return NULL;
+    ContextValue *ctx_value = malloc(sizeof(ContextValue));
+    if (!ctx_value) return NULL;
 
-    segment->type = SEGMENT_VARIABLE;
-    segment->data.variableSegment.value = string_new_from_cstr(value);
+    ctx_value->type = CONTEXT_VALUE_VECTOR;
+    ctx_value->value.vector = vector_default();
 
-    return segment;
+    va_list args;
+    va_start(args, value);
+    str_t arg = value;
+    while (arg) {
+        ctx_value->value.vector->push(ctx_value->value.vector, context_value_new_string(arg));
+        arg = va_arg(args, str_t);
+    }
+    va_end(args);
+
+    return ctx_value;
 }
+
