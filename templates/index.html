@@ -5,8 +5,14 @@
     <body>
         <h1>{{ heading }}</h1>
         <ul>
-        {{ for item in items }}
-            <li>{{ item }}</li>
+        {{ for i in outer_list }}
+            <li>
+                <ul>
+                {{ for j in inner_list }}
+                    <li>{{ i }}-{{ j }}</li>
+                {{ endfor }}
+                </ul>
+            </li>
         {{ endfor }}
         </ul>
     </body>

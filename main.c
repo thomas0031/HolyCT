@@ -21,11 +21,16 @@ int main(int argc, char *argv[])
     printf("Inserting values...\n");
     ctx->insert(ctx, string_new_from_cstr("title"), string_new_from_cstr("Title"));
     ctx->insert(ctx, string_new_from_cstr("heading"), string_new_from_cstr("List of items:"));
-    Vector *items = vector_default();
-    items->push(items, string_new_from_cstr("Item 1"));
-    items->push(items, string_new_from_cstr("Item 2"));
-    items->push(items, string_new_from_cstr("Item 3"));
-    ctx->insert(ctx, string_new_from_cstr("items"), items);
+    Vector *inner_list = vector_default();
+    inner_list->push(inner_list, string_new_from_cstr("1"));
+    inner_list->push(inner_list, string_new_from_cstr("2"));
+    inner_list->push(inner_list, string_new_from_cstr("3"));
+    ctx->insert(ctx, string_new_from_cstr("inner_list"), inner_list);
+    Vector *outer_list = vector_default();
+    outer_list->push(outer_list, string_new_from_cstr("1"));
+    outer_list->push(outer_list, string_new_from_cstr("2"));
+    outer_list->push(outer_list, string_new_from_cstr("3"));
+    ctx->insert(ctx, string_new_from_cstr("outer_list"), outer_list);
 
     printf("Preprocessing...\n");
     engine->preprocess(engine);
