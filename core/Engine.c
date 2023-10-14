@@ -4,6 +4,7 @@
 #include <stddef.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 #include <unistd.h>
 
 #include <stdlib.h>
@@ -19,7 +20,9 @@ struct Context_private {
 typedef enum {
     SEGMENT_STATIC,
     SEGMENT_VARIABLE,
-    SEGMENT_LOOP
+    SEGMENT_LOOP,
+    SEGMENT_IF_CONDITION,
+    SEGMENT_ELSE_CONDITION,
 } SegmentType;
 
 typedef struct {
@@ -36,10 +39,22 @@ typedef struct {
     Vector *segments;
 } LoopSegment;
 
+typedef struct {
+    str_t key;
+    String *condition;
+    Vector *segments;
+} IfConditionSegment;
+
+typedef struct {
+    Vector *segments;
+} ElseConditionSegment;
+
 typedef union {
     StaticSegment staticSegment;
     VariableSegment variableSegment;
     LoopSegment loopSegment;
+    IfConditionSegment ifConditionSegment;
+    ElseConditionSegment elseConditionSegment;
 } SegmentData;
 
 typedef struct Segment {
@@ -115,6 +130,30 @@ Segment *segment_new_loop(String *var, String *data, Vector *segments)
     return segment;
 }
 
+Segment *segment_new_if_condition(str_t key, String *condition, Vector *segments)
+{
+    Segment *segment = malloc(sizeof(Segment));
+    if (!segment) return NULL;
+
+    segment->type = SEGMENT_IF_CONDITION;
+    segment->data.ifConditionSegment.key = key;
+    segment->data.ifConditionSegment.condition = condition;
+    segment->data.ifConditionSegment.segments = segments;
+
+    return segment;
+}
+
+Segment *segment_new_else_condition(Vector *segments)
+{
+    Segment *segment = malloc(sizeof(Segment));
+    if (!segment) return NULL;
+
+    segment->type = SEGMENT_ELSE_CONDITION;
+    segment->data.elseConditionSegment.segments = segments;
+
+    return segment;
+}
+
 Segment *segment_new_variable(String *value)
 {
     Segment *segment = malloc(sizeof(Segment));
@@ -169,7 +208,26 @@ void engine_preprocess(Engine *self)
                 Vector *last = stack->last(stack);
                 last->push(last, segment_new_loop(loop_var, loop_data, loop_segments));
                 stack->push(stack, loop_segments);
-            } else if (directive->compare_cstr(directive, "endfor") == 0) {
+            } else if (directive->starts_with(directive, "if ")) {
+                String *condition = slice_to_string(directive->get_slice(directive, 3, directive->len(directive)));
+                Vector *condition_segments = vector_default();
+                Vector *last = stack->last(stack);
+                last->push(last, segment_new_if_condition("if", condition, condition_segments));
+                stack->push(stack, condition_segments);
+            } else if (directive->starts_with(directive, "elif ")) {
+                String *condition = slice_to_string(directive->get_slice(directive, 5, directive->len(directive)));
+                stack->pop(stack);
+                Vector *condition_segments = vector_default();
+                Vector *last = stack->last(stack);
+                last->push(last, segment_new_if_condition("elif", condition, condition_segments));
+                stack->push(stack, condition_segments);
+            } else if (directive->compare_cstr(directive, "else") == 0) {
+                stack->pop(stack);
+                Vector *else_segments = vector_default();
+                Vector *last = stack->last(stack);
+                last->push(last, segment_new_else_condition(else_segments));
+                stack->push(stack, else_segments);
+            } else if (directive->compare_cstr(directive, "endfor") == 0 || directive->compare_cstr(directive, "endif") == 0) {
                 stack->pop(stack);
             } else {
                 Vector *last = stack->last(stack);
@@ -193,13 +251,23 @@ void engine_preprocess(Engine *self)
     if (stack->len(stack) != 1) exit(1);
 }
 
+bool evaluate_condition(String *condition, Context *ctx)
+{
+    void *get = ctx->get(ctx, condition);
+    printf("get: %p\n", get);
+    return get != NULL && get != False;
+}
+
 String *engine_optimized_render(const Engine *self, Context *ctx)
 {
     engine_private *private = (engine_private*)(self + 1);
 
     Vector *segments = private->segments;
-
     Vector *parts = vector_default();
+
+    str_t skip_until = NULL;
+    bool condition_met = false;
+
     for (size_t i = 0; i < segments->len(segments); ++i) {
         const Segment *segment = segments->get(segments, i);
 
@@ -210,6 +278,44 @@ String *engine_optimized_render(const Engine *self, Context *ctx)
             case SEGMENT_VARIABLE: {
                 parts->push(parts, ctx->get(ctx, segment->data.variableSegment.value));
             } break;
+            case SEGMENT_IF_CONDITION: {
+                str_t key = segment->data.ifConditionSegment.key;
+                String *condition = segment->data.ifConditionSegment.condition;
+                Vector *inner_segments = segment->data.ifConditionSegment.segments;
+                printf("key: %s\n", key);
+                printf("condition: %s\n", condition->as_cstr(condition));
+
+                if (strcmp(key, "if") == 0) {
+                    if (evaluate_condition(condition, ctx)) {
+                        condition_met = true;
+                        private->segments = inner_segments;
+                        parts->push(parts, engine_optimized_render(self, ctx));
+                    } else {
+                        condition_met = false;
+                    }
+                } else if (strcmp(key, "elif") == 0) {
+                    printf("elif, condition_met: %d\n", condition_met);
+                    if (!condition_met) {
+                        if (evaluate_condition(condition, ctx)) {
+                            condition_met = true;
+                            private->segments = inner_segments;
+                            parts->push(parts, engine_optimized_render(self, ctx));
+                        }
+                    }
+                }
+
+            } break;
+            case SEGMENT_ELSE_CONDITION: {
+                Vector *inner_segments = segment->data.elseConditionSegment.segments;
+
+                if (!condition_met) {
+                    private->segments = inner_segments;
+                    parts->push(parts, engine_optimized_render(self, ctx));
+                } else {
+                    skip_until = "endif";
+                }
+            } break;
+            // TODO do we need to handle endif?
             case SEGMENT_LOOP: {
                 String *loop_var = segment->data.loopSegment.var;
                 String *loop_data = segment->data.loopSegment.data;

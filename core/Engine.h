@@ -1,6 +1,7 @@
 #ifndef ENGINE_H
 #define ENGINE_H
 
+#include "../common/types.h"
 #include "../collections/String.h"
 #include "../collections/Vector_generic.h"
 

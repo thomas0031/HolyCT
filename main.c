@@ -17,6 +17,7 @@ int main(int argc, char *argv[])
     Context *ctx = context_new();
     printf("Inserting values...\n");
     ctx->insert(ctx, string_new_from_cstr("title"), string_new_from_cstr("Title"));
+    ctx->insert(ctx, string_new_from_cstr("show_heading"), True);
     ctx->insert(ctx, string_new_from_cstr("heading"), string_new_from_cstr("List of items:"));
     Vector *inner_list = vector_default();
     inner_list->push(inner_list, string_new_from_cstr("1"));
@@ -28,6 +29,8 @@ int main(int argc, char *argv[])
     outer_list->push(outer_list, string_new_from_cstr("2"));
     outer_list->push(outer_list, string_new_from_cstr("3"));
     ctx->insert(ctx, string_new_from_cstr("outer_list"), outer_list);
+    ctx->insert(ctx, string_new_from_cstr("show_footer"), False);
+    ctx->insert(ctx, string_new_from_cstr("custom_footer"), string_new_from_cstr("This is a custom footer"));
 
     printf("Preprocessing...\n");
     engine->preprocess(engine);
