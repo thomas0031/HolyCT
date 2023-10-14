@@ -13,6 +13,6 @@ cool desc
 
 - [ ] Prevent XSS in Engine->render
 - [x] Add loops
-- [ ] Add conditionals
+- [x] Add conditionals
 - [x] Fix static placesholders 
 - [ ] Add components
