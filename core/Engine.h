@@ -7,20 +7,9 @@
 typedef struct Context Context;
 typedef struct Engine Engine;
 
-typedef struct ContextValue {
-    enum {
-        CONTEXT_VALUE_STRING,
-        CONTEXT_VALUE_VECTOR,
-    } type;
-    union {
-        String *string;
-        Vector *vector;
-    } value;
-} ContextValue;
-
 struct Context {
-    void (*insert)(Context *self, String *key, ContextValue *value);
-    ContextValue* (*get)(const Context *self, String *key);
+    void (*insert)(Context *self, String *key, void *value);
+    void* (*get)(const Context *self, String *key);
 };
 
 struct Engine {
@@ -45,9 +34,5 @@ Engine *engine_new(str_t);
  * @return The new context.
  */
 Context *context_new(void);
-
-ContextValue *context_value_new_string(str_t);
-
-ContextValue *context_value_new_vector(str_t, ...);
 
 #endif // !ENGINE_H

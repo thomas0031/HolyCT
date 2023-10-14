@@ -47,14 +47,14 @@ typedef struct Segment {
     SegmentData data;
 } Segment;
 
-void context_insert(Context *self, String *key, ContextValue *value) 
+void context_insert(Context *self, String *key, void *value) 
 {
     Context_private *data = (Context_private *)(self + 1);
 
     data->map->put(data->map, key, value);
 }
 
-ContextValue *context_get(const Context *self, String *key)
+void *context_get(const Context *self, String *key)
 {
     Context_private *data = (Context_private *)(self + 1);
 
@@ -193,27 +193,6 @@ void engine_preprocess(Engine *self)
     if (stack->len(stack) != 1) exit(1);
 }
 
-ContextValue *context_value_from_segment(Segment *s)
-{
-    printf("creating context value from segment\n");
-    switch (s->type) {
-        case SEGMENT_STATIC: {
-            printf("static: value: %s\n", s->data.staticSegment.value->as_cstr(s->data.staticSegment.value));
-            return context_value_new_string(s->data.staticSegment.value->as_cstr(s->data.staticSegment.value));
-        } break;
-        case SEGMENT_VARIABLE: {
-            printf("variable: value: %s\n", s->data.variableSegment.value->as_cstr(s->data.variableSegment.value));
-            return context_value_new_string(s->data.variableSegment.value->as_cstr(s->data.variableSegment.value));
-        } break;
-        case SEGMENT_LOOP: {
-            printf("loop:");
-            return NULL;
-        } break;
-        default:
-            exit(1);
-    }
-}
-
 String *engine_optimized_render(const Engine *self, Context *ctx)
 {
     engine_private *private = (engine_private*)(self + 1);
@@ -221,19 +200,14 @@ String *engine_optimized_render(const Engine *self, Context *ctx)
     Vector *segments = private->segments;
 
     Vector *parts = vector_default();
-    printf("segments len: %zu\n", segments->len(segments));
     for (size_t i = 0; i < segments->len(segments); ++i) {
         const Segment *segment = segments->get(segments, i);
-        printf("processing segment %zu\n", i);
-        printf("segment type: %d\n", segment->type);
 
         switch (segment->type) {
             case SEGMENT_STATIC: {
-                printf("static: \n");
                 parts->push(parts, segment->data.staticSegment.value);
             } break;
             case SEGMENT_VARIABLE: {
-                printf("variable: \n");
                 parts->push(parts, ctx->get(ctx, segment->data.variableSegment.value));
             } break;
             case SEGMENT_LOOP: {
@@ -241,36 +215,22 @@ String *engine_optimized_render(const Engine *self, Context *ctx)
                 String *loop_data = segment->data.loopSegment.data;
                 Vector *loop_segments = segment->data.loopSegment.segments;
 
-                printf("loop: %s in %s\n", loop_var->as_cstr(loop_var), loop_data->as_cstr(loop_data));
-
-                Vector *arr = ctx->get(ctx, loop_data)->value.vector;
-                size_t arr_len = arr->len(arr);
-                printf("loop_arr len: %zu\n", arr_len);
-                for (size_t j = 0; j < arr_len; ++j) {
-                   Context* inner_ctx = ctx;
-                   Segment *lopp_arr_el = arr->get(arr, j);
-                   printf("loop_arr_el->type: %d\n", lopp_arr_el->type);
-                   ContextValue *value_to_insert = context_value_from_segment(lopp_arr_el);
-                   inner_ctx->insert(inner_ctx, loop_var, value_to_insert); // TODO should be reset
-                   private->segments = loop_segments;
-                   parts->push(parts, engine_optimized_render(self, inner_ctx));
+                Vector *loop_data_vec = ctx->get(ctx, loop_data);
+                for (size_t j = 0; j < loop_data_vec->len(loop_data_vec); ++j) {
+                    Context *inner_ctx = ctx;
+                    inner_ctx->insert(inner_ctx, loop_var, loop_data_vec->get(loop_data_vec, j));
+                    private->segments = loop_segments;
+                    String *loop_result = engine_optimized_render(self, inner_ctx);
+                    parts->push(parts, loop_result);
                 }
+
             } break;
             default:
                 exit(1);
         }
-
-        //sleep(1);
     }
 
-    printf("parts len: %zu\n", parts->len(parts));
-    for (size_t i = 0; i < parts->len(parts); ++i) {
-        const String *part = parts->get(parts, i);
-        printf("part %zu: %s\n", i, part->as_cstr(part));
-    }
-    String *result = string_join(parts, "");
-    printf("result: %s\n", result->as_cstr(result));
-    return result;
+    return string_join(parts, "");
 }
 
 Engine *engine_new(str_t path)
@@ -287,35 +247,4 @@ Engine *engine_new(str_t path)
     private->segments = vector_default();
 
     return eng;
-}
-
-ContextValue *context_value_new_string(str_t value)
-{
-    ContextValue *ctx_value = malloc(sizeof(ContextValue));
-    if (!ctx_value) return NULL;
-
-    ctx_value->type = CONTEXT_VALUE_STRING;
-    ctx_value->value.string = string_new_from_cstr(value);
-
-    return ctx_value;
-}
-
-ContextValue *context_value_new_vector(str_t value, ...)
-{
-    ContextValue *ctx_value = malloc(sizeof(ContextValue));
-    if (!ctx_value) return NULL;
-
-    ctx_value->type = CONTEXT_VALUE_VECTOR;
-    ctx_value->value.vector = vector_default();
-
-    va_list args;
-    va_start(args, value);
-    str_t arg = value;
-    while (arg) {
-        ctx_value->value.vector->push(ctx_value->value.vector, context_value_new_string(arg));
-        arg = va_arg(args, str_t);
-    }
-    va_end(args);
-
-    return ctx_value;
 }
