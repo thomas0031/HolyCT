@@ -64,6 +64,10 @@ struct Vector {
      */
     void * (*get_ptr_raw)(Vector *self, size_t index);
 
+    void * (*last)(Vector *self);
+
+    void * (*pop)(Vector *self);
+
     /**
     * Clear the vector.
     *

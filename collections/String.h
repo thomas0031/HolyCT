@@ -2,6 +2,7 @@
 #define STRING_H
 
 #include "../global/types.h"
+#include "Vector_generic.h"
 #include <stddef.h>
 
 typedef struct String String;
@@ -15,8 +16,11 @@ struct String {
     void (*push)(String *self, char c);
     void (*push_str)(String *self, void *str);
     int (*compare)(const String *self, const String *other);
+    int (*compare_cstr)(const String *self, const str_t other);
     String *(*replace)(String *self, const str_t from, const str_t to);
     size_t (*find)(const String *self, const str_t substr);
+    bool (*starts_with)(const String *self, const str_t other);
+    Vector *(*split)(const String *self, const str_t delim);
 };
 
 /**
@@ -117,6 +121,12 @@ static inline int cmp_string(const void *a, const void *b)
 // TODO move to String struct
 void print_string(String *s);
 
+void print_slice(Slice *s);
+
 Slice *slice_trim(Slice *self);
+
+int slice_compare_cstr(const Slice *self, const str_t other);
+
+String *string_join(const Vector *strings, const str_t other);
 
 #endif // !STRING_H

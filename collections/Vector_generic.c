@@ -59,6 +59,22 @@ void *vector_generic_get_ptr_raw(Vector *self, size_t index)
     return private->data + index;
 }
 
+void *vector_generic_last(Vector *self) {
+    vector_private *private = (vector_private *)(self + 1);
+
+    if (private->len == 0) return NULL;
+
+    return private->data[private->len - 1];
+}
+
+void *vector_generic_pop(Vector *self) {
+    vector_private *private = (vector_private *)(self + 1);
+
+    if (private->len == 0) return NULL;
+
+    return private->data[--private->len];
+}
+
 void vector_generic_clear(Vector *self)
 {
     vector_private *private = (vector_private *)(self + 1);
@@ -87,6 +103,8 @@ Vector *vector_with_capacity(size_t capacity) {
     vec->get = vector_generic_get;
     vec->get_ptr = vector_generic_get_ptr;
     vec->get_ptr_raw = vector_generic_get_ptr_raw;
+    vec->last = vector_generic_last;
+    vec->pop = vector_generic_pop;
     vec->clear = vector_generic_clear;
 
     vector_private *private = (vector_private *)(vec + 1);

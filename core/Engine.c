@@ -4,6 +4,7 @@
 #include <stddef.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <unistd.h>
 
 #include <stdlib.h>
 #include "../collections/HashMap.h"
@@ -101,6 +102,41 @@ str_t read_from_file(str_t path)
     return buffer;
 }
 
+Segment *segment_new_loop(String *var, String *data, Vector *segments)
+{
+    Segment *segment = malloc(sizeof(Segment));
+    if (!segment) return NULL;
+
+    segment->type = SEGMENT_LOOP;
+    segment->data.loopSegment.var = var;
+    segment->data.loopSegment.data = data;
+    segment->data.loopSegment.segments = segments;
+
+    return segment;
+}
+
+Segment *segment_new_variable(String *value)
+{
+    Segment *segment = malloc(sizeof(Segment));
+    if (!segment) return NULL;
+
+    segment->type = SEGMENT_VARIABLE;
+    segment->data.variableSegment.value = value;
+
+    return segment;
+}
+
+Segment *segment_new_static(String *value)
+{
+    Segment *segment = malloc(sizeof(Segment));
+    if (!segment) return NULL;
+
+    segment->type = SEGMENT_STATIC;
+    segment->data.staticSegment.value = value;
+
+    return segment;
+}
+
 #define loop while (1)
 
 void engine_preprocess(Engine *self)
@@ -109,41 +145,73 @@ void engine_preprocess(Engine *self)
 
     Vector *segments = private->segments;
     segments->clear(segments);
+    Vector *stack = vector_default();
+    stack->push(stack, segments);
 
-    size_t last_pos = 0;
-    loop {
-        Slice *slice_from_last_pos = private->template->get_slice(private->template, last_pos, private->template->len(private->template));
-        size_t start = slice_find(slice_from_last_pos, "{{");
-        slice_free(slice_from_last_pos);
-        if (start == -1) break;
-        start += last_pos;
+    size_t pos = 0;
+    while (pos < private->template->len(private->template)) {
+        Slice *slice = private->template->get_slice(private->template, pos, pos + 2);
+        if (slice_compare_cstr(slice, "{{") == 0) {
+            slice_free(slice);
+            slice = private->template->get_slice(private->template, pos, private->template->len(private->template));
+            size_t end_pos = slice_find(slice, "}}") + 2;
+            if (end_pos == 1) exit(1);  // TODO: error Handling
+            slice_free(slice);
+            end_pos += pos;
+            slice = private->template->get_slice(private->template, pos + 2, end_pos - 2);
+            String *directive = slice_to_string(slice_trim(slice));
 
-        Slice *slice_from_start = private->template->get_slice(private->template, start, private->template->len(private->template));
-        size_t end = slice_find(slice_from_start, "}}");
-        slice_free(slice_from_start);
-        if (end == -1) break;   // TODO return error
-        end += 2 + start;
+            if (directive->starts_with(directive, "for ")) {
+                Vector *tokens = directive->split(directive, " ");
+                String *loop_var = tokens->get(tokens, 1);
+                String *loop_data = tokens->get(tokens, 3);
+                Vector *loop_segments = vector_default();
+                Vector *last = stack->last(stack);
+                last->push(last, segment_new_loop(loop_var, loop_data, loop_segments));
+                stack->push(stack, loop_segments);
+            } else if (directive->compare_cstr(directive, "endfor") == 0) {
+                stack->pop(stack);
+            } else {
+                Vector *last = stack->last(stack);
+                last->push(last, segment_new_variable(directive));
+            }
 
-        Slice *key_slice = private->template->get_slice(private->template, start + 2, end - 2);
-        String *key = slice_to_string(slice_trim(key_slice));
+            pos = end_pos;
+        } else {
+            slice = private->template->get_slice(private->template, pos, private->template->len(private->template));
+            size_t next_pos = slice_find(slice, "{{");
+            slice_free(slice);
+            next_pos = next_pos == -1 ? private->template->len(private->template) : next_pos + pos;
+            Vector *last = stack->last(stack);
+            slice = private->template->get_slice(private->template, pos, next_pos);
+            last->push(last, segment_new_static(slice_to_string(slice)));
 
-        Segment *static_segment = malloc(sizeof(Segment));
-        static_segment->type = SEGMENT_STATIC;
-
-        static_segment->data.staticSegment.value = slice_to_string(private->template->get_slice(private->template, last_pos, start));
-        segments->push(segments, static_segment);
-        
-        Segment *dynamic_segment = malloc(sizeof(Segment));
-        dynamic_segment->type = SEGMENT_VARIABLE;
-        dynamic_segment->data.variableSegment.value = key;
-        segments->push(segments, dynamic_segment);
-
-        last_pos = end;
+            pos = next_pos;
+        }
     }
-    Segment *static_segment = malloc(sizeof(Segment));
-    static_segment->type = SEGMENT_STATIC;
-    static_segment->data.staticSegment.value = slice_to_string(private->template->get_slice(private->template, last_pos, private->template->len(private->template)));
-    segments->push(segments, static_segment);
+
+    if (stack->len(stack) != 1) exit(1);
+}
+
+ContextValue *context_value_from_segment(Segment *s)
+{
+    printf("creating context value from segment\n");
+    switch (s->type) {
+        case SEGMENT_STATIC: {
+            printf("static: value: %s\n", s->data.staticSegment.value->as_cstr(s->data.staticSegment.value));
+            return context_value_new_string(s->data.staticSegment.value->as_cstr(s->data.staticSegment.value));
+        } break;
+        case SEGMENT_VARIABLE: {
+            printf("variable: value: %s\n", s->data.variableSegment.value->as_cstr(s->data.variableSegment.value));
+            return context_value_new_string(s->data.variableSegment.value->as_cstr(s->data.variableSegment.value));
+        } break;
+        case SEGMENT_LOOP: {
+            printf("loop:");
+            return NULL;
+        } break;
+        default:
+            exit(1);
+    }
 }
 
 String *engine_optimized_render(const Engine *self, Context *ctx)
@@ -152,24 +220,57 @@ String *engine_optimized_render(const Engine *self, Context *ctx)
 
     Vector *segments = private->segments;
 
-    String *rendered = string_default();
+    Vector *parts = vector_default();
+    printf("segments len: %zu\n", segments->len(segments));
     for (size_t i = 0; i < segments->len(segments); ++i) {
         const Segment *segment = segments->get(segments, i);
+        printf("processing segment %zu\n", i);
+        printf("segment type: %d\n", segment->type);
 
         switch (segment->type) {
-            case SEGMENT_VARIABLE:
-                rendered->push_str(rendered, ctx->get(ctx, segment->data.variableSegment.value)->value.string);
-                break;
-            case SEGMENT_STATIC:
-                rendered->push_str(rendered, segment->data.staticSegment.value);
-                break;
+            case SEGMENT_STATIC: {
+                printf("static: \n");
+                parts->push(parts, segment->data.staticSegment.value);
+            } break;
+            case SEGMENT_VARIABLE: {
+                printf("variable: \n");
+                parts->push(parts, ctx->get(ctx, segment->data.variableSegment.value));
+            } break;
+            case SEGMENT_LOOP: {
+                String *loop_var = segment->data.loopSegment.var;
+                String *loop_data = segment->data.loopSegment.data;
+                Vector *loop_segments = segment->data.loopSegment.segments;
+
+                printf("loop: %s in %s\n", loop_var->as_cstr(loop_var), loop_data->as_cstr(loop_data));
+
+                Vector *arr = ctx->get(ctx, loop_data)->value.vector;
+                size_t arr_len = arr->len(arr);
+                printf("loop_arr len: %zu\n", arr_len);
+                for (size_t j = 0; j < arr_len; ++j) {
+                   Context* inner_ctx = ctx;
+                   Segment *lopp_arr_el = arr->get(arr, j);
+                   printf("loop_arr_el->type: %d\n", lopp_arr_el->type);
+                   ContextValue *value_to_insert = context_value_from_segment(lopp_arr_el);
+                   inner_ctx->insert(inner_ctx, loop_var, value_to_insert); // TODO should be reset
+                   private->segments = loop_segments;
+                   parts->push(parts, engine_optimized_render(self, inner_ctx));
+                }
+            } break;
             default:
-                // error;
-                return NULL;
+                exit(1);
         }
+
+        //sleep(1);
     }
 
-    return rendered;
+    printf("parts len: %zu\n", parts->len(parts));
+    for (size_t i = 0; i < parts->len(parts); ++i) {
+        const String *part = parts->get(parts, i);
+        printf("part %zu: %s\n", i, part->as_cstr(part));
+    }
+    String *result = string_join(parts, "");
+    printf("result: %s\n", result->as_cstr(result));
+    return result;
 }
 
 Engine *engine_new(str_t path)
@@ -218,4 +319,3 @@ ContextValue *context_value_new_vector(str_t value, ...)
 
     return ctx_value;
 }
-
