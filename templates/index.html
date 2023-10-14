@@ -4,25 +4,43 @@
     </head>
     <body>
         {{ if show_heading }}
-            <h1>{{ heading }}</h1>
+        <h1>{{ heading }}</h1>
         {{ endif }}
-        <ul>
-        {{ for i in outer_list }}
+
+        <ul class="items">
+        {{ for item in items }}
+            <li>{{ item }}</li>
+        {{ endfor }}
+        </ul>
+
+        <ul class="outer_loop">
+        {{ for outer_item in outer_loop }}
             <li>
-                <ul>
-                {{ for j in inner_list }}
-                    <li>{{ i }}-{{ j }}</li>
+                {{ outer_item }}
+                <ol class="inner_loop">
+                {{ for inner_item in inner_loop }}
+                    <li>{{ inner_item }}</li>
                 {{ endfor }}
-                </ul>
+                </ol>
             </li>
         {{ endfor }}
         </ul>
+
+        <div class="outer_range">
+        {{ for i in 0..3 }}
+            <div class="inner_range">
+            {{ for j in 0..3 }}
+                <span class="item-{{ i }}-{{ j }}">{{ i }} - {{ j }}</span>
+            {{ endfor }}
+        {{ endfor }}
+        </div>
+
         {{ if show_footer }}
-            <footer>{{ footer }}</footer>
+        <footer>{{ footer }}</footer>
         {{ elif custom_footer }}
-            <footer>{{ custom_footer }}</footer>
+        <footer>{{ custom_footer }}</footer>
         {{ else }}
-            <footer>No footer available.</footer>
+        <footer>No footer available.</footer>
         {{ endif }}
     </body>
 </html>

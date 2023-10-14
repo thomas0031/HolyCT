@@ -7,7 +7,6 @@
 
 #include "core/Engine.h"
 
-
 int main(int argc, char *argv[])
 {
     printf("Creating engine...\n");
@@ -19,16 +18,21 @@ int main(int argc, char *argv[])
     ctx->insert(ctx, string_new_from_cstr("title"), string_new_from_cstr("Title"));
     ctx->insert(ctx, string_new_from_cstr("show_heading"), True);
     ctx->insert(ctx, string_new_from_cstr("heading"), string_new_from_cstr("List of items:"));
-    Vector *inner_list = vector_default();
-    inner_list->push(inner_list, string_new_from_cstr("1"));
-    inner_list->push(inner_list, string_new_from_cstr("2"));
-    inner_list->push(inner_list, string_new_from_cstr("3"));
-    ctx->insert(ctx, string_new_from_cstr("inner_list"), inner_list);
-    Vector *outer_list = vector_default();
-    outer_list->push(outer_list, string_new_from_cstr("1"));
-    outer_list->push(outer_list, string_new_from_cstr("2"));
-    outer_list->push(outer_list, string_new_from_cstr("3"));
-    ctx->insert(ctx, string_new_from_cstr("outer_list"), outer_list);
+    Vector *items = vector_default();
+    items->push(items, string_new_from_cstr("Item 1"));
+    items->push(items, string_new_from_cstr("Item 2"));
+    items->push(items, string_new_from_cstr("Item 3"));
+    Vector *outer_loop = vector_default();
+    outer_loop->push(outer_loop, string_new_from_cstr("Outer 1"));
+    outer_loop->push(outer_loop, string_new_from_cstr("Outer 2"));
+    outer_loop->push(outer_loop, string_new_from_cstr("Outer 3"));
+    ctx->insert(ctx, string_new_from_cstr("outer_loop"), outer_loop);
+    Vector *inner_loop = vector_default();
+    inner_loop->push(inner_loop, string_new_from_cstr("Inner 1"));
+    inner_loop->push(inner_loop, string_new_from_cstr("Inner 2"));
+    inner_loop->push(inner_loop, string_new_from_cstr("Inner 3"));
+    ctx->insert(ctx, string_new_from_cstr("inner_loop"), inner_loop);
+    ctx->insert(ctx, string_new_from_cstr("items"), items);
     ctx->insert(ctx, string_new_from_cstr("show_footer"), False);
     ctx->insert(ctx, string_new_from_cstr("custom_footer"), string_new_from_cstr("This is a custom footer"));
 

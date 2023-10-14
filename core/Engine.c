@@ -1,14 +1,14 @@
 #include "Engine.h"
 
-#include <stdarg.h>
 #include <stddef.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
-
 #include <stdlib.h>
+
 #include "../collections/HashMap.h"
+#include "../common/Regex.h"
 
 typedef struct Context_private Context_private;
 typedef struct Segment Segment;
@@ -21,6 +21,7 @@ typedef enum {
     SEGMENT_STATIC,
     SEGMENT_VARIABLE,
     SEGMENT_LOOP,
+    SEGMENT_RANGE,
     SEGMENT_IF_CONDITION,
     SEGMENT_ELSE_CONDITION,
 } SegmentType;
@@ -40,6 +41,13 @@ typedef struct {
 } LoopSegment;
 
 typedef struct {
+    String *var;
+    size_t start;
+    size_t end;
+    Vector *segments;
+} RangeSegment;
+
+typedef struct {
     str_t key;
     String *condition;
     Vector *segments;
@@ -53,6 +61,7 @@ typedef union {
     StaticSegment staticSegment;
     VariableSegment variableSegment;
     LoopSegment loopSegment;
+    RangeSegment rangeSegment;
     IfConditionSegment ifConditionSegment;
     ElseConditionSegment elseConditionSegment;
 } SegmentData;
@@ -130,6 +139,20 @@ Segment *segment_new_loop(String *var, String *data, Vector *segments)
     return segment;
 }
 
+Segment *segment_new_range(String *var, size_t start, size_t end, Vector *segments)
+{
+    Segment *segment = malloc(sizeof(Segment));
+    if (!segment) return NULL;
+
+    segment->type = SEGMENT_RANGE;
+    segment->data.rangeSegment.var = var;
+    segment->data.rangeSegment.start = start;
+    segment->data.rangeSegment.end = end;
+    segment->data.rangeSegment.segments = segments;
+
+    return segment;
+}
+
 Segment *segment_new_if_condition(str_t key, String *condition, Vector *segments)
 {
     Segment *segment = malloc(sizeof(Segment));
@@ -201,12 +224,21 @@ void engine_preprocess(Engine *self)
             String *directive = slice_to_string(slice_trim(slice));
 
             if (directive->starts_with(directive, "for ")) {
-                Vector *tokens = directive->split(directive, " ");
-                String *loop_var = tokens->get(tokens, 1);
-                String *loop_data = tokens->get(tokens, 3);
                 Vector *loop_segments = vector_default();
-                Vector *last = stack->last(stack);
-                last->push(last, segment_new_loop(loop_var, loop_data, loop_segments));
+                str_t *range_match = match("for ([[:alnum:]]+) in ([[:digit:]]+)\\.\\.([[:digit:]]+)", directive->as_cstr(directive), 3);
+                if (range_match) {
+                    str_t loop_var = range_match[0];
+                    size_t start = atoi(range_match[1]);
+                    size_t end = atoi(range_match[2]);
+                    Vector *last = stack->last(stack);
+                    last->push(last, segment_new_range(string_new_from_cstr(loop_var), start, end, loop_segments));
+                } else {
+                    Vector *tokens = directive->split(directive, " ");
+                    String *loop_var = tokens->get(tokens, 1);
+                    String *loop_data = tokens->get(tokens, 3);
+                    Vector *last = stack->last(stack);
+                    last->push(last, segment_new_loop(loop_var, loop_data, loop_segments));
+                }
                 stack->push(stack, loop_segments);
             } else if (directive->starts_with(directive, "if ")) {
                 String *condition = slice_to_string(directive->get_slice(directive, 3, directive->len(directive)));
@@ -254,7 +286,6 @@ void engine_preprocess(Engine *self)
 bool evaluate_condition(String *condition, Context *ctx)
 {
     void *get = ctx->get(ctx, condition);
-    printf("get: %p\n", get);
     return get != NULL && get != False;
 }
 
@@ -282,8 +313,6 @@ String *engine_optimized_render(const Engine *self, Context *ctx)
                 str_t key = segment->data.ifConditionSegment.key;
                 String *condition = segment->data.ifConditionSegment.condition;
                 Vector *inner_segments = segment->data.ifConditionSegment.segments;
-                printf("key: %s\n", key);
-                printf("condition: %s\n", condition->as_cstr(condition));
 
                 if (strcmp(key, "if") == 0) {
                     if (evaluate_condition(condition, ctx)) {
@@ -294,7 +323,6 @@ String *engine_optimized_render(const Engine *self, Context *ctx)
                         condition_met = false;
                     }
                 } else if (strcmp(key, "elif") == 0) {
-                    printf("elif, condition_met: %d\n", condition_met);
                     if (!condition_met) {
                         if (evaluate_condition(condition, ctx)) {
                             condition_met = true;
@@ -330,6 +358,22 @@ String *engine_optimized_render(const Engine *self, Context *ctx)
                     parts->push(parts, loop_result);
                 }
 
+            } break;
+            case SEGMENT_RANGE: {
+                String *loop_var = segment->data.rangeSegment.var;
+                size_t start = segment->data.rangeSegment.start;
+                size_t end = segment->data.rangeSegment.end;
+                Vector *loop_segments = segment->data.rangeSegment.segments;
+
+                for (size_t j = start; j < end; ++j) {
+                    Context *inner_ctx = ctx;
+                    String *num = string_default();
+                    num->push(num, '0' + j);
+                    inner_ctx->insert(inner_ctx, loop_var, num);
+                    private->segments = loop_segments;
+                    String *loop_result = engine_optimized_render(self, inner_ctx);
+                    parts->push(parts, loop_result);
+                }
             } break;
             default:
                 exit(1);
