@@ -1,9 +1,8 @@
 #ifndef HASHMAP_H
 #define HASHMAP_H
 
-#include "../global/types.h"
+#include "../common/utils.h"
 #include "String.h"
-#include <stddef.h>
 #include <stdbool.h>
 #include <string.h>
 #include <stdio.h>
@@ -92,25 +91,6 @@ struct HashMap {
      */
     MapIterator* (*iter)(HashMap *self);
 };
-
-/**
- * A function that hashes a key.
- *
- * @param  key The key to hash.
- *
- * @return The hash of the key.
- */
-typedef size_t (*hash_func_t)(const void *);
-
-/**
- * A function that compares two keys.
- *
- * @param  a The first key.
- * @param  b The second key.
- *
- * @return < 0 if a < b, 0 if a == b, > 0 if a > b.
- */
-typedef int (*cmp_func_t)(const void *, const void *);
 
 /**
  * Creates a new hashmap with the default hash and compare functions.

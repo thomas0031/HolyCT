@@ -3,7 +3,9 @@
         <title>{{ title }}</title>
     </head>
     <body>
-        <h1>{{ heading }}</h1>
+        {{ if show_heading }}
+            <h1>{{ heading }}</h1>
+        {{ endif }}
         <ul>
         {{ for i in outer_list }}
             <li>
@@ -15,6 +17,13 @@
             </li>
         {{ endfor }}
         </ul>
+        {{ if show_footer }}
+            <footer>{{ footer }}</footer>
+        {{ elif custom_footer }}
+            <footer>{{ custom_footer }}</footer>
+        {{ else }}
+            <footer>No footer available.</footer>
+        {{ endif }}
     </body>
 </html>
 

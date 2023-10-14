@@ -10,9 +10,6 @@
 
 int main(int argc, char *argv[])
 {
-    printf("Running tests...\n");
-    run_all_tests();
-
     printf("Creating engine...\n");
     Engine *engine = engine_new("templates/index.html");
 

@@ -20,4 +20,7 @@ typedef double f64;
 // pointer types
 typedef char* str_t;
 
+#define True ((void *)1)
+#define False ((void *)0)
+
 #endif // !TYPES_H

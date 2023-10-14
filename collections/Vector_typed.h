@@ -1,7 +1,7 @@
 #ifndef VECTOR_TYPED_H
 #define VECTOR_TYPED_H
 
-#include "../global/types.h"
+#include "../common/types.h"
 #include <stddef.h>
 
 #define DEFINE_VECTOR_FOR_TYPE(T)\

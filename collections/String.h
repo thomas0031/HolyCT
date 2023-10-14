@@ -1,7 +1,6 @@
 #ifndef STRING_H
 #define STRING_H
 
-#include "../global/types.h"
 #include "Vector_generic.h"
 #include <stddef.h>
 

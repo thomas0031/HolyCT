@@ -1,7 +1,7 @@
 #ifndef VECTOR_GENERIC_H
 #define VECTOR_GENERIC_H
 
-#include "../global/types.h"
+#include "../common/types.h"
 #include <stddef.h>
 
 typedef struct Vector Vector;
