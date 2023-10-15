@@ -2,6 +2,7 @@
 
 #include "../collections/Vector_generic.h"
 
+#include <assert.h>
 #include <ctype.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -123,6 +124,53 @@ Vector *tokenize(const char* expr) {
     return list;
 }
 
+int get_precedence(char op) {
+    switch(op) {
+        case '+':
+        case '-':
+            return 2;
+        case '*':
+        case '/':
+        case '%':
+            return 3;
+        case '<':
+        case '>':
+        case 'E': // ==
+        case 'N': // !=
+        case 'G': // >=
+        case 'L': // <=
+            return 1;
+        case 'A': // &&
+        case 'O': // ||
+            return 0;
+        default:
+            fprintf(stderr, "Undefined operator: %c\n", op);
+            return -1; // Undefined operator
+    }
+}
+
+int is_left_associative(char op) {
+    switch(op) {
+        // Assuming all provided operators are left-associative
+        case '+':
+        case '-':
+        case '*':
+        case '/':
+        case '%':
+        case '<':
+        case '>':
+        case 'E': // ==
+        case 'N': // !=
+        case 'A': // &&
+        case 'O': // ||
+        case 'G': // >=
+        case 'L': // <=
+            return 1;
+        default:
+            fprintf(stderr, "Undefined operator: %c\n", op);
+            return 0; // Undefined operator or right-associative
+    }
+}
 
 // Parsing: Convert tokens to AST
 ASTNode* parse(Vector *tokens) {
@@ -138,9 +186,13 @@ ASTNode* parse(Vector *tokens) {
             output_queue->push(output_queue, token);
         } else if (token->type == OPERATOR) {
             Token *last_token = operator_stack->last(operator_stack);
-            while (last_token && last_token->type != LPAREN) {
+            while (last_token && 
+                    last_token->type != LPAREN && 
+                    (get_precedence(last_token->data.op) > get_precedence(token->data.op) || 
+                    (get_precedence(last_token->data.op) == get_precedence(token->data.op) && is_left_associative(token->data.op)))) {
                 output_queue->push(output_queue, last_token);
                 operator_stack->pop(operator_stack);
+
                 last_token = operator_stack->last(operator_stack);
             }
             operator_stack->push(operator_stack, token);
@@ -148,11 +200,15 @@ ASTNode* parse(Vector *tokens) {
             operator_stack->push(operator_stack, token);
         } else if (token->type == RPAREN) {
             Token *last_token = operator_stack->last(operator_stack);
-            while (last_token && last_token->data.op != '(') {
+            while (last_token && last_token->type != LPAREN) {
+                assert(operator_stack->len(operator_stack) != 0);
+
                 output_queue->push(output_queue, last_token);
                 operator_stack->pop(operator_stack);
+
                 last_token = operator_stack->last(operator_stack);
             }
+            operator_stack->pop(operator_stack);
         } else {
             // Handle error, unexpected token
             printf("Unexpected token->type: %d\n", token->type);
@@ -166,8 +222,22 @@ ASTNode* parse(Vector *tokens) {
         operator_stack->pop(operator_stack);
     }
 
-    
-    printf("Creating AST...\n");
+    //printf("Output queue: ");
+    //for (size_t i = 0; i < output_queue->len(output_queue); ++i) {
+    //    Token *token = output_queue->get(output_queue, i);
+    //    if (token->type == LITERAL) {
+    //        printf("{%d} ", token->data.value);
+    //    } else if (token->type == OPERATOR) {
+    //        printf("{%c} ", token->data.op);
+    //    } else if (token->type == LPAREN) {
+    //        printf("{(} ");
+    //    } else if (token->type == RPAREN) {
+    //        printf("{)} ");
+    //    }
+    //}
+    //printf("\n");
+    //
+    //printf("Creating AST...\n");
     Vector *stack = vector_default();
     
     size_t output_queue_len = output_queue->len(output_queue);
@@ -223,7 +293,7 @@ int evaluate(ASTNode* root) {
     } else if (root->token.type == OPERATOR) {
         int left = evaluate(root->left);
         int right = evaluate(root->right);
-        printf("Evaluating %d %c %d\n", left, root->token.data.op, right);
+        //printf("Evaluating %d %c %d\n", left, root->token.data.op, right);
         switch (root->token.data.op) {
             case '+': return left + right;
             case '-': return left - right;
