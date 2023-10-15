@@ -1,6 +1,7 @@
 #ifndef UTILS_H
 #define UTILS_H
 
+#include "types.h"
 #include <stddef.h>
 
 /**
@@ -21,5 +22,14 @@ typedef size_t (*hash_func_t)(const void *);
  * @return < 0 if a < b, 0 if a == b, > 0 if a > b.
  */
 typedef int (*cmp_func_t)(const void *, const void *);
+
+/**
+ * Python eval function.
+ *
+ * @param  expr The expression to evaluate.
+ * 
+ * @return The result of the evaluation.
+ */
+bool eval_condition(const str_t expr);
 
 #endif // !UTILS_H
