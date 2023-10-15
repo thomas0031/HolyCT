@@ -11,27 +11,33 @@
 int main(int argc, char *argv[])
 {
     str_t int_literal_cmp_eq = "5 == 5";
-    printf("%s: %d\n", int_literal_cmp_eq, eval_condition(int_literal_cmp_eq));
+    printf("%s: %d\n", int_literal_cmp_eq, eval_condition(int_literal_cmp_eq, NULL));
     str_t int_literal_cmp_neq = "5 != 5";
-    printf("%s: %d\n", int_literal_cmp_neq, eval_condition(int_literal_cmp_neq));
+    printf("%s: %d\n", int_literal_cmp_neq, eval_condition(int_literal_cmp_neq, NULL));
     str_t int_literal_cmp_gt = "5 > 5";
-    printf("%s: %d\n", int_literal_cmp_gt, eval_condition(int_literal_cmp_gt));
+    printf("%s: %d\n", int_literal_cmp_gt, eval_condition(int_literal_cmp_gt, NULL));
     str_t int_literal_cmp_lt = "5 < 5";
-    printf("%s: %d\n", int_literal_cmp_lt, eval_condition(int_literal_cmp_lt));
+    printf("%s: %d\n", int_literal_cmp_lt, eval_condition(int_literal_cmp_lt, NULL));
     str_t int_literal_cmp_gte = "5 >= 5";
-    printf("%s: %d\n", int_literal_cmp_gte, eval_condition(int_literal_cmp_gte));
+    printf("%s: %d\n", int_literal_cmp_gte, eval_condition(int_literal_cmp_gte, NULL));
     str_t int_literal_cmp_lte = "5 <= 5";
-    printf("%s: %d\n", int_literal_cmp_lte, eval_condition(int_literal_cmp_lte));
+    printf("%s: %d\n", int_literal_cmp_lte, eval_condition(int_literal_cmp_lte, NULL));
     str_t int_literal_cmp_and = "5 && 5";
-    printf("%s: %d\n", int_literal_cmp_and, eval_condition(int_literal_cmp_and));
+    printf("%s: %d\n", int_literal_cmp_and, eval_condition(int_literal_cmp_and, NULL));
     str_t int_literal_cmp_or = "5 || 5";
-    printf("%s: %d\n", int_literal_cmp_or, eval_condition(int_literal_cmp_or));
+    printf("%s: %d\n", int_literal_cmp_or, eval_condition(int_literal_cmp_or, NULL));
     str_t int_literal_cmp_paren = "(5 == 5)";
-    printf("%s: %d\n", int_literal_cmp_paren, eval_condition(int_literal_cmp_paren));
+    printf("%s: %d\n", int_literal_cmp_paren, eval_condition(int_literal_cmp_paren, NULL));
     str_t int_literal_cmp_paren2 = "((5 == 5) && (5 == 5))";
-    printf("%s: %d\n", int_literal_cmp_paren2, eval_condition(int_literal_cmp_paren2));
+    printf("%s: %d\n", int_literal_cmp_paren2, eval_condition(int_literal_cmp_paren2, NULL));
     str_t int_literal_cmp_paren3 = "(5 == 5) && ((5 == 5) || (5 == 5))";
-    printf("%s: %d\n", int_literal_cmp_paren3, eval_condition(int_literal_cmp_paren3));
+    printf("%s: %d\n", int_literal_cmp_paren3, eval_condition(int_literal_cmp_paren3, NULL));
+    str_t int_sum_cmp = "5 + 5 == 10";
+    printf("%s: %d\n", int_sum_cmp, eval_condition(int_sum_cmp, NULL));
+    str_t int_literal_ident = "a == 5";
+    Context *ctx = context_new();
+    ctx->insert(ctx, string_new_from_cstr("a"), string_new_from_cstr("5"));
+    printf("%s: %d\n", int_literal_ident, eval_condition(int_literal_ident, ctx));
     //printf("Creating engine...\n");
     //Engine *engine = engine_new("templates/index.html");
 

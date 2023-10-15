@@ -9,10 +9,11 @@
 #include <string.h>
 
 typedef struct {
-    enum { LITERAL, OPERATOR, LPAREN, RPAREN } type;
+    enum { LITERAL, IDENTIFIER, OPERATOR, LPAREN, RPAREN } type;
     union {
         int value;
         char op;   // unique char values for multi-char operators
+        char *name;
     } data;
 } Token;
 
@@ -32,6 +33,12 @@ Vector *tokenize(const char* expr) {
         if (isdigit(*expr)) {
             token->type = LITERAL;
             token->data.value = strtol(expr, (char**)&expr, 10);
+        } else if (isalpha(*expr)) {
+            token->type = IDENTIFIER;
+            char *start = (char*)expr;
+            while (isalpha(*expr)) expr++;
+            token->data.name = malloc(expr - start + 1);
+            memcpy(token->data.name, start, expr - start);
         } else {
             switch (*expr) {
                 case '+': case '-': case '*': case '/': case '%':
@@ -121,6 +128,7 @@ Vector *tokenize(const char* expr) {
 
         list->push(list, token);
     }
+
     return list;
 }
 
@@ -184,6 +192,8 @@ ASTNode* parse(Vector *tokens) {
 
         if (token->type == LITERAL) {
             output_queue->push(output_queue, token);
+        } else if (token->type == IDENTIFIER) {
+            output_queue->push(output_queue, token);
         } else if (token->type == OPERATOR) {
             Token *last_token = operator_stack->last(operator_stack);
             while (last_token && 
@@ -211,7 +221,7 @@ ASTNode* parse(Vector *tokens) {
             operator_stack->pop(operator_stack);
         } else {
             // Handle error, unexpected token
-            printf("Unexpected token->type: %d\n", token->type);
+            fprintf(stderr, "Unexpected token type: %d\n", token->type);
         }
         // add handling for function
     }
@@ -251,6 +261,8 @@ ASTNode* parse(Vector *tokens) {
 
         if (current_token->type == LITERAL) {
             stack->push(stack, new_node);
+        } else if (current_token->type == IDENTIFIER) {
+            stack->push(stack, new_node);
         } else if (current_token->type == OPERATOR) {
             if (stack->len(stack) < 2) {
                 // Error: Not enough operands for operator
@@ -268,6 +280,7 @@ ASTNode* parse(Vector *tokens) {
             stack->push(stack, new_node);
         } else {
             // Unexpected token type
+            fprintf(stderr, "Unexpected token type: %d\n", current_token->type);
             free(new_node);
             // Clean-up other allocated nodes if needed.
             return NULL;
@@ -277,6 +290,7 @@ ASTNode* parse(Vector *tokens) {
     if (stack->len(stack) != 1) {
         // Error: Invalid postfix notation
         // Clean-up allocated nodes if needed.
+        fprintf(stderr, "Invalid postfix notation\n");
         return NULL;
     }
 
@@ -286,13 +300,21 @@ ASTNode* parse(Vector *tokens) {
 }
 
 // Evaluation
-int evaluate(ASTNode* root) {
+int evaluate(ASTNode* root, const Context *ctx) {
     if (!root) return 0;
     if (root->token.type == LITERAL) {
         return root->token.data.value;
+    } else if (root->token.type == IDENTIFIER) {
+        String *value = ctx->get(ctx, string_new_from_cstr(root->token.data.name));
+        if (value) {
+            return atoi(value->as_cstr(value));
+        } else {
+            fprintf(stderr, "Undefined identifier: %s\n", root->token.data.name);
+            exit(EXIT_FAILURE);
+        }
     } else if (root->token.type == OPERATOR) {
-        int left = evaluate(root->left);
-        int right = evaluate(root->right);
+        int left = evaluate(root->left, ctx);
+        int right = evaluate(root->right, ctx);
         //printf("Evaluating %d %c %d\n", left, root->token.data.op, right);
         switch (root->token.data.op) {
             case '+': return left + right;
@@ -328,15 +350,16 @@ void print_tokens(Vector *tokens)
             case OPERATOR: printf("Token: { type: OPERATOR, op: %c }\n", token->data.op); break;
             case LPAREN: printf("Token: { type: LPAREN, op: %c }\n", token->data.op); break;
             case RPAREN: printf("Token: { type: RPAREN, op: %c }\n", token->data.op); break;
+            case IDENTIFIER: printf("Token: { type: IDENTIFIER, name: %s }\n", token->data.name); break;
         }
     }
 }
 
-bool eval_condition(const str_t expr) {
+bool eval_condition(const str_t expr, const Context *ctx) {
     Vector *tokens = tokenize(expr);
     //print_tokens(tokens);
     ASTNode* root = parse(tokens);
-    int result = evaluate(root);
+    int result = evaluate(root, ctx);
     //free(tokens.tokens);
     // Free AST nodes here (if you use dynamic allocation in your parse function)
     return result != 0;

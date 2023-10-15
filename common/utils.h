@@ -2,6 +2,7 @@
 #define UTILS_H
 
 #include "types.h"
+#include "../core/Engine.h"
 #include <stddef.h>
 
 /**
@@ -30,6 +31,6 @@ typedef int (*cmp_func_t)(const void *, const void *);
  * 
  * @return The result of the evaluation.
  */
-bool eval_condition(const str_t expr);
+bool eval_condition(const str_t expr, const Context *context);
 
 #endif // !UTILS_H
