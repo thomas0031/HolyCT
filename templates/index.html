@@ -4,7 +4,7 @@
     </head>
     <body>
         {{ if show_heading }}
-        <h1>{{ heading }}</h1>
+            <h1>{{ heading }}</h1>
         {{ endif }}
 
         <ul class="items">
@@ -36,12 +36,48 @@
         </div>
 
         {{ if show_footer }}
-        <footer>{{ footer }}</footer>
+            <footer class="show_footer">{{ footer }}</footer>
         {{ elif custom_footer }}
-        <footer>{{ custom_footer }}</footer>
+            <footer class="custom_footer">{{ custom_footer }}</footer>
         {{ else }}
-        <footer>No footer available.</footer>
+            <footer class="default_footer">No footer available.</footer>
         {{ endif }}
+
+        <div class="count">Count: {{ count }}</div>
+
+        <div class="if_conditional">
+        {{ if count > 2 }}
+            <p>Count greater than 2</p>
+        {{ else }}
+            <p>Count less than or equal 2</p>
+        {{ endif }}
+        </div>
+
+        <div class="ternary_like">
+            <p>Count is {{ if count % 2 == 0 }}even{{ else }}odd{{ endif }}</p>
+        </div>
+
+        <div class="conditional_inside_range">
+        {{ for i in 0..10 }}
+            {{ if i % 2 == 0 }}
+                <p class="even">{{ i }} is even</p>
+            {{ else }}
+                <p class="odd">{{ i }} is odd</p>
+            {{ endif }}
+        {{ endfor }}
+        </div>
+
+        <div class="triangle">
+        {{ for i in 0..10 }}
+            {{ for j in 0..10 }}
+                {{ if j <= i }}
+                    <span class="item-{{ i }}-{{ j }}">*</span>
+                {{ endif }}
+            {{ endfor }}
+            <br />
+        {{ endfor }}
+
+
     </body>
 </html>
 

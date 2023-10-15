@@ -10,7 +10,7 @@ typedef struct Engine Engine;
 
 struct Context {
     void (*insert)(Context *self, String *key, void *value);
-    void* (*get)(const Context *self, String *key);
+    void* (*get)(const Context *self, const String *key);
 };
 
 struct Engine {

@@ -9,6 +9,7 @@
 
 #include "../collections/HashMap.h"
 #include "../common/Regex.h"
+#include "../common/utils.h"
 
 typedef struct Context_private Context_private;
 typedef struct Segment Segment;
@@ -78,7 +79,7 @@ void context_insert(Context *self, String *key, void *value)
     data->map->put(data->map, key, value);
 }
 
-void *context_get(const Context *self, String *key)
+void *context_get(const Context *self, const String *key)
 {
     Context_private *data = (Context_private *)(self + 1);
 
@@ -283,10 +284,14 @@ void engine_preprocess(Engine *self)
     if (stack->len(stack) != 1) exit(1);
 }
 
-bool evaluate_condition(String *condition, Context *ctx)
+bool eval(const String *condition, const Context *ctx)
 {
     void *get = ctx->get(ctx, condition);
-    return get != NULL && get != False;
+    if (get == True) {
+        return true;
+    }
+    //return true;
+    return eval_condition(condition->as_cstr(condition), ctx);
 }
 
 String *engine_optimized_render(const Engine *self, Context *ctx)
@@ -312,10 +317,11 @@ String *engine_optimized_render(const Engine *self, Context *ctx)
             case SEGMENT_IF_CONDITION: {
                 str_t key = segment->data.ifConditionSegment.key;
                 String *condition = segment->data.ifConditionSegment.condition;
+
                 Vector *inner_segments = segment->data.ifConditionSegment.segments;
 
                 if (strcmp(key, "if") == 0) {
-                    if (evaluate_condition(condition, ctx)) {
+                    if (eval(condition, ctx)) {
                         condition_met = true;
                         private->segments = inner_segments;
                         parts->push(parts, engine_optimized_render(self, ctx));
@@ -324,7 +330,7 @@ String *engine_optimized_render(const Engine *self, Context *ctx)
                     }
                 } else if (strcmp(key, "elif") == 0) {
                     if (!condition_met) {
-                        if (evaluate_condition(condition, ctx)) {
+                        if (eval(condition, ctx)) {
                             condition_met = true;
                             private->segments = inner_segments;
                             parts->push(parts, engine_optimized_render(self, ctx));

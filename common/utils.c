@@ -26,7 +26,9 @@ typedef struct Node {
 Vector *tokenize(const char* expr) {
     Vector *list = vector_default();
 
+    const char *root_expr = expr;
     while (*expr) {
+        //printf("id: %ld\n", expr - root_expr);
         while (isspace(*expr)) expr++;
 
         Token *token = malloc(sizeof(Token));
@@ -36,9 +38,10 @@ Vector *tokenize(const char* expr) {
         } else if (isalpha(*expr)) {
             token->type = IDENTIFIER;
             char *start = (char*)expr;
-            while (isalpha(*expr)) expr++;
+            while (isalpha(*expr) || *expr == '_') expr++;
             token->data.name = malloc(expr - start + 1);
             memcpy(token->data.name, start, expr - start);
+            token->data.name[expr - start] = '\0';
         } else {
             switch (*expr) {
                 case '+': case '-': case '*': case '/': case '%':
@@ -121,7 +124,7 @@ Vector *tokenize(const char* expr) {
                     break;
                 default:
                     // Invalid character
-                    printf("Invalid character in expression: %c\n", *expr);
+                    printf("Invalid character in expression: '%c', ascii: %d\n", *expr, *expr);
                     exit(EXIT_FAILURE);
             }
         }
@@ -299,6 +302,15 @@ ASTNode* parse(Vector *tokens) {
     return root;
 }
 
+bool isnumber(const char *str)
+{
+    while (*str) {
+        if (!isdigit(*str)) return false;
+        str++;
+    }
+    return true;
+}
+
 // Evaluation
 int evaluate(ASTNode* root, const Context *ctx) {
     if (!root) return 0;
@@ -307,7 +319,11 @@ int evaluate(ASTNode* root, const Context *ctx) {
     } else if (root->token.type == IDENTIFIER) {
         String *value = ctx->get(ctx, string_new_from_cstr(root->token.data.name));
         if (value) {
-            return atoi(value->as_cstr(value));
+            str_t value_str = value->as_cstr(value);
+            if (strcmp(value_str, "true") == 0) return 1;
+            if (strcmp(value_str, "false") == 0) return 0;
+            if (isnumber(value_str)) return atoi(value_str);
+            return 1;
         } else {
             fprintf(stderr, "Undefined identifier: %s\n", root->token.data.name);
             exit(EXIT_FAILURE);
@@ -315,7 +331,6 @@ int evaluate(ASTNode* root, const Context *ctx) {
     } else if (root->token.type == OPERATOR) {
         int left = evaluate(root->left, ctx);
         int right = evaluate(root->right, ctx);
-        //printf("Evaluating %d %c %d\n", left, root->token.data.op, right);
         switch (root->token.data.op) {
             case '+': return left + right;
             case '-': return left - right;

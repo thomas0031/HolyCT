@@ -47,6 +47,7 @@ void vector_##T##_push(Vector_##T##_t self, T item) {\
     }\
 \
     private->data[private->len++] = item;\
+    private->data[private->len] = 0;\
 }\
 \
 T vector_##T##_get(Vector_##T##_t self, size_t index) {\
