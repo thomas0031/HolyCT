@@ -40,7 +40,7 @@ int main(int argc, char *argv[])
     //printf("%s: %d\n", int_literal_ident, eval_condition(int_literal_ident, ctx));
     
     printf("Creating engine...\n");
-    Engine *engine = engine_new("templates/index.html");
+    Engine *engine = engine_new("templates/all.ct");
 
     printf("Creating context...\n");
     Context *ctx = context_new();

@@ -76,7 +76,7 @@
             {{ endfor }}
             <br />
         {{ endfor }}
-
+        </div>
 
     </body>
 </html>
