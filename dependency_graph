@@ -1,0 +1,17 @@
+engine.render(context) -> char*
+    create engine struct(takes const char* path)
+    create context Map<String, Object> or just dynamic array
+        context.put (string, wrapper) -> void
+        context.get (void) -> wrapper
+    engine.preprocess -> void
+        store segments (dynamic array)
+            segment struct
+        clear them
+        stack
+            new
+            last
+            push
+            len
+        strcmpn -> bool
+        find(cinst char*) -> int
+        starts_with(const char*) -> bool
