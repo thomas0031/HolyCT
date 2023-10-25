@@ -1,7 +1,5 @@
 #include "utils.h"
 
-#include "../collections/Vector_generic.h"
-
 #include <assert.h>
 #include <ctype.h>
 #include <stdio.h>
