@@ -303,7 +303,6 @@ void engine_preprocess(Engine *engine)
 
     size_t pos = 0;
     while (pos < priv->template_size) {
-        printf("Pos: %zu\n", pos);
         if (strncmp(priv->template + pos, "{{", 2) == 0) {
             const char *find = strstr(priv->template + pos, "}}");
             if (find == NULL) exit(1); // TODO error handling
@@ -311,7 +310,6 @@ void engine_preprocess(Engine *engine)
             char *slice = str_slice(priv->template, pos + 2, end_pos - 2);
             char *directive = str_trim(slice);
             free(slice);
-            printf("\tDirective: \"%s\"\n", directive);
 
             if (strncmp(directive, "for ", 4) == 0) {
                 Vector *loop_segments = vector_default();
@@ -325,8 +323,6 @@ void engine_preprocess(Engine *engine)
                     last->push(last, segment_new_range(loop_var, start, end, loop_segments));
                 } else {
                     char **tokens = str_split(directive, " ");
-                    printf("\tTokens: %s, %s, %s, %s\n", tokens[0], tokens[1], tokens[2], tokens[3]);
-                    printf("\tSize: %zu\n", str_arr_size(tokens));
                     assert(str_arr_size(tokens) == 4); // for, $var, in, $data
                     const char *loop_var = tokens[1];
                     const char *loop_data = tokens[3];
@@ -364,7 +360,6 @@ void engine_preprocess(Engine *engine)
 
             pos = end_pos;
         } else {
-            printf("\tStatic\n");
             const char *find = strstr(priv->template + pos, "{{");
             size_t next_pos = find == NULL ? priv->template_size : find - priv->template;
             Vector *last = stack->last(stack);
