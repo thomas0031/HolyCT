@@ -24,6 +24,7 @@ const void *vector_get(const Vector *self, size_t index) {
 
 const void *vector_last(const Vector *self) {
     _Vector *priv = (_Vector *)(self + 1);
+    if (priv->size == 0) return NULL;
     return priv->items[priv->size - 1];
 }
 

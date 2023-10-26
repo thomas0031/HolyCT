@@ -382,7 +382,7 @@ bool eval_condition(const char *expr, const Context *ctx) {
 char *str_slice(const char *str, size_t from, size_t to) {
     if (from > to || from >= strlen(str)) exit(1); // TODO handle error invalid slice
 
-    size_t slice_length = to - from + 1;
+    size_t slice_length = to - from;
     char* slice = malloc(slice_length + 1); // +1 for null terminator
 
     strncpy(slice, str + from, slice_length);
@@ -444,4 +444,14 @@ char **str_split(const char *str, const char *delim) {
 
     free(copy);
     return result;
+}
+
+size_t str_arr_size(char **arr) {
+    size_t count = 0;
+    if (arr) {
+        while (arr[count]) {
+            ++count;
+        }
+    }
+    return count;
 }

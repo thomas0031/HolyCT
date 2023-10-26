@@ -85,6 +85,7 @@ Segment *segment_new_if_condition(const char *key, const char *condition, Vector
     Segment *segment = malloc(sizeof(Segment));
 
     segment->type = IF;
+    segment->value.if_condition = malloc(sizeof(IfSegment));
     segment->value.if_condition->key = key;
     segment->value.if_condition->condition = condition;
     segment->value.if_condition->segments = segments;
@@ -97,6 +98,7 @@ Segment *segment_new_else_condition(Vector *segments)
     Segment *segment = malloc(sizeof(Segment));
 
     segment->type = ELSE;
+    segment->value.else_condition = malloc(sizeof(ElseSegment));
     segment->value.else_condition->segments = segments;
 
     return segment;
@@ -107,6 +109,7 @@ Segment *segment_new_var(const char *var)
     Segment *segment = malloc(sizeof(Segment));
 
     segment->type = STRING;
+    segment->value.var = malloc(sizeof(VarSegment));
     segment->value.var->var = var;
 
     return segment;
@@ -117,6 +120,7 @@ Segment *segment_new_static(const char *string)
     Segment *segment = malloc(sizeof(Segment));
 
     segment->type = STATIC;
+    segment->value.static_string = malloc(sizeof(StaticSegment));
     segment->value.static_string->string = string;
 
     return segment;
@@ -183,6 +187,9 @@ void context_insert(Context *self, const char *key, Segment *value) {
                 printf("  %s\n", value->value.list_string->strings[i]);
             }
             break;
+        default:
+            fprintf(stderr, "Dynamic segment type:\n\t");
+            exit(1);
     }
     _Context *priv = (_Context *)(self + 1);
     Segment *get = self->get(self, key);
@@ -282,28 +289,29 @@ void list_segments_clear(ListSegments *list) {
 struct _Engine {
     const char *template;
     size_t template_size;
-    ListSegments *segments;
+    Vector *segments;
 };
 
 void engine_preprocess(Engine *engine)
 {
     _Engine *priv = (_Engine *)(engine + 1);
 
-    ListSegments *segments = priv->segments;
-    list_segments_clear(segments);
+    Vector *segments = priv->segments;
 
     Vector *stack = vector_default();
     stack->push(stack, segments);
 
     size_t pos = 0;
     while (pos < priv->template_size) {
+        printf("Pos: %zu\n", pos);
         if (strncmp(priv->template + pos, "{{", 2) == 0) {
             const char *find = strstr(priv->template + pos, "}}");
             if (find == NULL) exit(1); // TODO error handling
-            size_t end_pos = find - priv->template + 2;
+            size_t end_pos = pos + (find - (priv->template + pos)) + 2;
             char *slice = str_slice(priv->template, pos + 2, end_pos - 2);
             char *directive = str_trim(slice);
             free(slice);
+            printf("\tDirective: \"%s\"\n", directive);
 
             if (strncmp(directive, "for ", 4) == 0) {
                 Vector *loop_segments = vector_default();
@@ -317,7 +325,9 @@ void engine_preprocess(Engine *engine)
                     last->push(last, segment_new_range(loop_var, start, end, loop_segments));
                 } else {
                     char **tokens = str_split(directive, " ");
-                    assert(ARRAY_SIZE(tokens) == 4); // for, $var, in, $data
+                    printf("\tTokens: %s, %s, %s, %s\n", tokens[0], tokens[1], tokens[2], tokens[3]);
+                    printf("\tSize: %zu\n", str_arr_size(tokens));
+                    assert(str_arr_size(tokens) == 4); // for, $var, in, $data
                     const char *loop_var = tokens[1];
                     const char *loop_data = tokens[3];
                     Vector *last = stack->last(stack);
@@ -354,11 +364,12 @@ void engine_preprocess(Engine *engine)
 
             pos = end_pos;
         } else {
+            printf("\tStatic\n");
             const char *find = strstr(priv->template + pos, "{{");
-            size_t next_pos = find == NULL ? priv->template_size : find - priv->template + pos;
+            size_t next_pos = find == NULL ? priv->template_size : find - priv->template;
             Vector *last = stack->last(stack);
             char* slice = str_slice(priv->template, pos, next_pos);
-            last->push(last, segment_new_static(strdup(slice)));
+            last->push(last, segment_new_static(slice));
 
             pos = next_pos;
         }
@@ -401,7 +412,7 @@ Engine *engine_new(const char* path) {
     _Engine *priv = (_Engine *)(engine + 1);
     priv->template = read_file(path);
     priv->template_size = strlen(priv->template);
-    priv->segments = list_segments_default();
+    priv->segments = vector_default();
 
     return engine;
 }
