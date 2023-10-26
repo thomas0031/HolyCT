@@ -1,4 +1,6 @@
-#include "utils.h"
+#include "Utils.h"
+
+#include "../collections/Vector.h"
 
 #include <assert.h>
 #include <ctype.h>
@@ -17,8 +19,8 @@ typedef struct {
 
 typedef struct Node {
     Token token;
-    struct Node* left;
-    struct Node* right;
+    const struct Node* left;
+    const struct Node* right;
 } ASTNode;
 
 Vector *tokenize(const char* expr) {
@@ -182,14 +184,14 @@ int is_left_associative(char op) {
 }
 
 // Parsing: Convert tokens to AST
-ASTNode* parse(Vector *tokens) {
+const ASTNode* parse(Vector *tokens) {
     Vector *output_queue = vector_default();
     Vector *operator_stack = vector_default();
 
     size_t tokens_len = tokens->len(tokens);
 
     for (size_t i = 0; i < tokens_len; ++i) {
-        Token *token = tokens->get(tokens, i);
+        const Token *token = tokens->get(tokens, i);
 
         if (token->type == LITERAL) {
             output_queue->push(output_queue, token);
@@ -253,7 +255,7 @@ ASTNode* parse(Vector *tokens) {
     
     size_t output_queue_len = output_queue->len(output_queue);
     for (size_t i = 0; i < output_queue_len; ++i) {
-        Token *current_token = output_queue->get(output_queue, i);
+        const Token *current_token = output_queue->get(output_queue, i);
         
         ASTNode *new_node = (ASTNode*) malloc(sizeof(ASTNode));
         new_node->token = *current_token;
@@ -272,8 +274,8 @@ ASTNode* parse(Vector *tokens) {
                 return NULL;
             }
 
-            ASTNode *right_child = stack->pop(stack);
-            ASTNode *left_child = stack->pop(stack);
+            const ASTNode *right_child = stack->pop(stack);
+            const ASTNode *left_child = stack->pop(stack);
             
             new_node->left = left_child;
             new_node->right = right_child;
@@ -295,7 +297,7 @@ ASTNode* parse(Vector *tokens) {
         return NULL;
     }
 
-    ASTNode *root = stack->pop(stack);
+    const ASTNode *root = stack->pop(stack);
     // Remember to free the stack after use.
     return root;
 }
@@ -310,17 +312,16 @@ bool isnumber(const char *str)
 }
 
 // Evaluation
-int evaluate(ASTNode* root, const Context *ctx) {
+int evaluate(const ASTNode* root, const Context *ctx) {
     if (!root) return 0;
     if (root->token.type == LITERAL) {
         return root->token.data.value;
     } else if (root->token.type == IDENTIFIER) {
-        String *value = ctx->get(ctx, string_new_from_cstr(root->token.data.name));
+        char *value = ctx->get(ctx, root->token.data.name)->value.string;
         if (value) {
-            str_t value_str = value->as_cstr(value);
-            if (strcmp(value_str, "true") == 0) return 1;
-            if (strcmp(value_str, "false") == 0) return 0;
-            if (isnumber(value_str)) return atoi(value_str);
+            if (strncmp(value, "true", 4) == 0) return 1;
+            if (strncmp(value, "false", 5) == 0) return 0;
+            if (isnumber(value)) return atoi(value);
             return 1;
         } else {
             fprintf(stderr, "Undefined identifier: %s\n", root->token.data.name);
@@ -356,7 +357,7 @@ void print_tokens(Vector *tokens)
 {
     size_t tokens_len = tokens->len(tokens);
     for (size_t i = 0; i < tokens_len; ++i) {
-        Token *token = tokens->get(tokens, i);
+        const Token *token = tokens->get(tokens, i);
 
         switch (token->type) {
             case LITERAL: printf("Token: { type: LITERAL, value: %d }\n", token->data.value); break;
@@ -368,12 +369,79 @@ void print_tokens(Vector *tokens)
     }
 }
 
-bool eval_condition(const str_t expr, const Context *ctx) {
+bool eval_condition(const char *expr, const Context *ctx) {
     Vector *tokens = tokenize(expr);
     //print_tokens(tokens);
-    ASTNode* root = parse(tokens);
+    const ASTNode* root = parse(tokens);
     int result = evaluate(root, ctx);
     //free(tokens.tokens);
     // Free AST nodes here (if you use dynamic allocation in your parse function)
     return result != 0;
+}
+
+char *str_slice(const char *str, size_t from, size_t to) {
+    if (from > to || from >= strlen(str)) exit(1); // TODO handle error invalid slice
+
+    size_t slice_length = to - from + 1;
+    char* slice = malloc(slice_length + 1); // +1 for null terminator
+
+    strncpy(slice, str + from, slice_length);
+    slice[slice_length] = '\0'; // Null-terminate the slice
+
+    return slice;
+}
+
+char *str_trim(const char *str) {
+    if (!str) exit(1); // TODO handle error invalid string
+
+    const char *start = str;
+    while (*start && isspace((unsigned char)*start)) start++;
+
+    const char *end = str + strlen(str) - 1;
+    while (end > start && isspace((unsigned char)*end)) end--;
+
+    size_t length = end - start + 1;
+    char *trimmed = malloc(length + 1);
+
+    strncpy(trimmed, start, length);
+    trimmed[length] = '\0';
+
+    return trimmed;
+}
+
+char **str_split(const char *str, const char *delim) {
+    if (!str || !delim) exit(1); // TODO handle error invalid string or delimiter
+
+    size_t capacity = 10;
+    char **result = malloc(capacity * sizeof(char *));
+    char *copy = strdup(str);
+
+    char *token = strtok(copy, delim);
+    size_t count = 0;
+
+    while (token) {
+        if (count >= capacity) {
+            capacity *= 2;
+            result = realloc(result, capacity * sizeof(char *));
+        }
+
+        result[count] = strdup(token);
+
+        ++count;
+        token = strtok(NULL, delim);
+    }
+
+    // Resize the result array to the exact number of tokens
+    char **temp = realloc(result, count * sizeof(char *));
+    if (temp) {
+        result = temp;
+    } else {
+        // Failed to shrink the array, but the original data is still valid
+    }
+
+    // Add a NULL pointer at the end to indicate the end of the array
+    result[count] = NULL;
+
+    free(copy);
+    return result;
 }

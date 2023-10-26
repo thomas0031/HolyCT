@@ -1,6 +1,8 @@
 #ifndef ENGINE_H
 #define ENGINE_H
 
+#include "../collections/Vector.h"
+
 #include <stdbool.h>
 #include <stdarg.h>
 #include <stddef.h>
@@ -22,6 +24,72 @@ struct ListString {
     char **strings;
     size_t size;
 };
+
+enum SegmentType {
+    // static
+    BOOLEAN,
+    STRING,
+    NUMBER,
+    LIST_STRING,
+
+    // custom dynamic
+    RANGE,
+    LOOP,
+    IF,
+    ELSE,
+
+    // custom static
+    VAR,
+    STATIC,
+};
+
+typedef struct {
+    const char *var;
+    size_t start;
+    size_t end;
+    Vector *segments;
+} RangeSegment;
+
+typedef struct {
+    const char *var;
+    const char *data;
+    Vector *segments;
+} LoopSegment;
+
+typedef struct {
+    const char *key;
+    const char *condition;
+    Vector *segments;
+} IfSegment;
+
+typedef struct {
+    Vector *segments;
+} ElseSegment;
+
+typedef struct {
+    const char *var;
+} VarSegment;
+
+typedef struct {
+    const char *string;
+} StaticSegment;
+
+struct Segment {
+    enum SegmentType type;
+    union {
+        bool boolean;
+        char *string;
+        int number;
+        ListString *list_string;
+        RangeSegment *range;
+        LoopSegment *loop;
+        IfSegment *if_condition;
+        ElseSegment *else_condition;
+        VarSegment *var;
+        StaticSegment *static_string;
+    } value;
+};
+
 
 ListString create_list_string(const char* first, ...);
 

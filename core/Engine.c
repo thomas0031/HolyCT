@@ -1,13 +1,21 @@
 #include "Engine.h"
 
+#include "../common/Utils.h"
+#include "../common/Regex.h"
+
+#include <assert.h>
+#include <stddef.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
 #define DEFAULT_CONTEXT_SIZE 10
+#define DEFAULT_SEGMENT_SIZE 10
 
 typedef struct _Context _Context;
 typedef struct Context_Entry Context_Entry;
+typedef struct _Engine _Engine;
+typedef struct ListSegments ListSegments;
 
 struct Context_Entry {
     const char *key;
@@ -45,22 +53,74 @@ ListString create_list_string(const char* first, ...) {
     return list;
 }
 
-enum SegmentType {
-    BOOLEAN,
-    STRING,
-    NUMBER,
-    LIST_STRING,
-};
+Segment *segment_new_range(const char *var, size_t start, size_t end, Vector *segments)
+{
+    Segment *segment = malloc(sizeof(Segment));
 
-struct Segment {
-    enum SegmentType type;
-    union {
-        bool boolean;
-        char *string;
-        int number;
-        ListString *list_string;
-    } value;
-};
+    segment->type = RANGE;
+    segment->value.range = malloc(sizeof(RangeSegment));
+    segment->value.range->var = var;
+    segment->value.range->start = start;
+    segment->value.range->end = end;
+    segment->value.range->segments = segments;
+
+    return segment;
+}
+
+Segment *segment_new_loop(const char *var, const char *data, Vector *segments)
+{
+    Segment *segment = malloc(sizeof(Segment));
+
+    segment->type = LOOP;
+    segment->value.loop = malloc(sizeof(LoopSegment));
+    segment->value.loop->var = var;
+    segment->value.loop->data = data;
+    segment->value.loop->segments = segments;
+
+    return segment;
+}
+
+Segment *segment_new_if_condition(const char *key, const char *condition, Vector *segments)
+{
+    Segment *segment = malloc(sizeof(Segment));
+
+    segment->type = IF;
+    segment->value.if_condition->key = key;
+    segment->value.if_condition->condition = condition;
+    segment->value.if_condition->segments = segments;
+
+    return segment;
+}
+
+Segment *segment_new_else_condition(Vector *segments)
+{
+    Segment *segment = malloc(sizeof(Segment));
+
+    segment->type = ELSE;
+    segment->value.else_condition->segments = segments;
+
+    return segment;
+}
+
+Segment *segment_new_var(const char *var)
+{
+    Segment *segment = malloc(sizeof(Segment));
+
+    segment->type = STRING;
+    segment->value.var->var = var;
+
+    return segment;
+}
+
+Segment *segment_new_static(const char *string)
+{
+    Segment *segment = malloc(sizeof(Segment));
+
+    segment->type = STATIC;
+    segment->value.static_string->string = string;
+
+    return segment;
+}
 
 void segment_free(Segment *segment) {
     switch (segment->type) {
@@ -76,6 +136,18 @@ void segment_free(Segment *segment) {
                 free(segment->value.list_string->strings[i]);
             }
             free(segment->value.list_string->strings);
+            break;
+        default:
+            printf("Dynamic segment type:\n\t");
+            switch (segment->type) {
+                case RANGE:
+                    printf("range\n");
+                    // TODO free value.range->segments & value.range
+                    break;
+                default:
+                    printf("unknown\n");
+                    exit(1);
+            }
             break;
     }
 }
@@ -174,16 +246,125 @@ Context *context_new()
     return ctx;
 }
 
-typedef struct _Engine _Engine;
+struct ListSegments {
+    Segment *segments;
+    size_t size;
+    size_t capacity;
+};
+
+ListSegments *list_segments_default() {
+    ListSegments *list = malloc(sizeof(ListSegments));
+    list->segments = malloc(sizeof(Segment) * DEFAULT_SEGMENT_SIZE);
+    list->size = 0;
+    list->capacity = DEFAULT_SEGMENT_SIZE;
+    return list;
+}
+
+void list_segments_push(ListSegments *list, Segment *segment) {
+    if (list->size == list->capacity) {
+        list->capacity *= 2;
+        list->segments = realloc(list->segments, sizeof(Segment) * list->capacity);
+    }
+    list->segments[list->size++] = *segment;
+}
+
+Segment *list_segments_last(ListSegments *list) {
+    return &list->segments[list->size - 1];
+}
+
+void list_segments_clear(ListSegments *list) {
+    for (size_t i = 0; i < list->size; i++) {
+        segment_free(&list->segments[i]);
+    }
+    list->size = 0;
+}
 
 struct _Engine {
     const char *template;
+    size_t template_size;
+    ListSegments *segments;
 };
 
 void engine_preprocess(Engine *engine)
 {
     _Engine *priv = (_Engine *)(engine + 1);
-    // TODO
+
+    ListSegments *segments = priv->segments;
+    list_segments_clear(segments);
+
+    Vector *stack = vector_default();
+    stack->push(stack, segments);
+
+    size_t pos = 0;
+    while (pos < priv->template_size) {
+        if (strncmp(priv->template + pos, "{{", 2) == 0) {
+            const char *find = strstr(priv->template + pos, "}}");
+            if (find == NULL) exit(1); // TODO error handling
+            size_t end_pos = find - priv->template + 2;
+            char *slice = str_slice(priv->template, pos + 2, end_pos - 2);
+            char *directive = str_trim(slice);
+            free(slice);
+
+            if (strncmp(directive, "for ", 4) == 0) {
+                Vector *loop_segments = vector_default();
+                char **range_match = match("for ([[:alnum:]]+) in ([[:digit:]]+)\\.\\.([[:digit:]]+)", directive, 3);
+                
+                if (range_match) {
+                    const char *loop_var = range_match[0];
+                    size_t start = atoi(range_match[1]);
+                    size_t end = atoi(range_match[2]);
+                    Vector *last = stack->last(stack);
+                    last->push(last, segment_new_range(loop_var, start, end, loop_segments));
+                } else {
+                    char **tokens = str_split(directive, " ");
+                    assert(ARRAY_SIZE(tokens) == 4); // for, $var, in, $data
+                    const char *loop_var = tokens[1];
+                    const char *loop_data = tokens[3];
+                    Vector *last = stack->last(stack);
+                    last->push(last, segment_new_loop(loop_var, loop_data, loop_segments));
+                }
+                stack->push(stack, loop_segments);
+            } else if (strncmp(directive, "if ", 3) == 0) {
+                const char* condition = directive + 3;
+                Vector *condition_segments = vector_default();
+                Vector *last = stack->last(stack);
+                last->push(last, segment_new_if_condition("if", condition, condition_segments));
+                stack->push(stack, condition_segments);
+            } else if (strncmp(directive, "elif ", 5) == 0) {
+                const char* condition = directive + 5;
+                stack->pop(stack);
+                Vector *condition_segments = vector_default();
+                Vector *last = stack->last(stack);
+                last->push(last, segment_new_if_condition("elif", condition, condition_segments));
+                stack->push(stack, condition_segments);
+            } else if (strncmp(directive, "else", 4) == 0) {
+                stack->pop(stack);
+                Vector *else_segments = vector_default();
+                Vector *last = stack->last(stack);
+                last->push(last, segment_new_else_condition(else_segments));
+                stack->push(stack, else_segments);
+            } else if (strncmp(directive, "endfor", 6) == 0 || strncmp(directive, "endif", 5) == 0) {
+                stack->pop(stack);
+            } else {
+                Vector *last = stack->last(stack);
+                last->push(last, segment_new_var(directive));
+            }
+
+            free(directive);
+
+            pos = end_pos;
+        } else {
+            const char *find = strstr(priv->template + pos, "{{");
+            size_t next_pos = find == NULL ? priv->template_size : find - priv->template + pos;
+            Vector *last = stack->last(stack);
+            char* slice = str_slice(priv->template, pos, next_pos);
+            last->push(last, segment_new_static(strdup(slice)));
+
+            pos = next_pos;
+        }
+    }
+
+    if (stack->len(stack) != 1) exit(1); // TODO error handling
 }
 
 const char *engine_render(const Engine *engine, Context *ctx)
@@ -219,7 +400,8 @@ Engine *engine_new(const char* path) {
 
     _Engine *priv = (_Engine *)(engine + 1);
     priv->template = read_file(path);
-    printf("%s\n", priv->template);
+    priv->template_size = strlen(priv->template);
+    priv->segments = list_segments_default();
 
     return engine;
 }

@@ -2,8 +2,8 @@
 CC = gcc
 
 # Directories
-SRC_DIR = core
-INCLUDE_DIR = core
+SRC_DIR = core common collections
+INCLUDE_DIR = core common collections
 
 # Compiler flags (Add each include directory)
 CFLAGS = $(foreach dir, $(INCLUDE_DIR), -I$(dir))

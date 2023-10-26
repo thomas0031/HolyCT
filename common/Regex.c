@@ -6,14 +6,14 @@
 #include <stdlib.h>
 #include <string.h>
 
-str_t *match(const str_t pattern, const str_t text, size_t num_of_vars) {
+char **match(const char *pattern, const char *text, size_t num_of_vars) {
     regex_t regex;
     if (regcomp(&regex, pattern, REG_EXTENDED) != 0) {
         fprintf(stderr, "Failed to compile regex\n");
         return NULL;
     }
 
-    str_t *vars = malloc(num_of_vars * sizeof(str_t));
+    char **vars = malloc(num_of_vars * sizeof(char *));
     regmatch_t *match = malloc(sizeof(regmatch_t) * (num_of_vars + 1)); // +1 for the entire matched string
     if (regexec(&regex, text, num_of_vars + 1, match, 0) == 0) {
         for (size_t i = 0; i < num_of_vars; i++) {
