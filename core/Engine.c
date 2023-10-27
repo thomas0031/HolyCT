@@ -4,9 +4,7 @@
 #include "../common/Regex.h"
 
 #include <assert.h>
-#include <stddef.h>
 #include <stdio.h>
-#include <stdlib.h>
 #include <string.h>
 
 #define DEFAULT_CONTEXT_SIZE 10
@@ -15,11 +13,34 @@
 typedef struct _Context _Context;
 typedef struct Context_Entry Context_Entry;
 typedef struct _Engine _Engine;
-typedef struct ListSegments ListSegments;
 
+void print_segment_type(SegmentType type) {
+    printf("Segment type: ");
+    switch (type) {
+        case STATIC:
+            printf("STATIC");
+            break;
+        case VARIABLE:
+            printf("VARIABLE");
+            break;
+        case LOOP:
+            printf("LOOP");
+            break;
+        case RANGE:
+            printf("RANGE");
+            break;
+        case IF:
+            printf("IF");
+            break;
+        case ELSE:
+            printf("ELSE");
+            break;
+    }
+    printf("\n");
+}
 struct Context_Entry {
     const char *key;
-    Segment *value;
+    void *value;
 };
 
 struct _Context {
@@ -28,41 +49,24 @@ struct _Context {
     size_t capacity;
 };
 
-ListString create_list_string(const char* first, ...) {
-    ListString list;
-    list.size = 0;
-    list.strings = NULL;
-
-    va_list args;
-    va_start(args, first);
-    
-    const char* item = first;
-    while (item) {
-        // Resize the array to hold one more string
-        list.strings = realloc(list.strings, (list.size + 1) * sizeof(char*));
-        
-        // Copy the string to the array
-        list.strings[list.size] = strdup(item);
-        list.size++;
-
-        // Get the next string
-        item = va_arg(args, const char*);
-    }
-    
-    va_end(args);
-    return list;
-}
-
-Segment *segment_new_range(const char *var, size_t start, size_t end, Vector *segments)
+Segment *segment_new_static(char *var)
 {
     Segment *segment = malloc(sizeof(Segment));
 
-    segment->type = RANGE;
-    segment->value.range = malloc(sizeof(RangeSegment));
-    segment->value.range->var = var;
-    segment->value.range->start = start;
-    segment->value.range->end = end;
-    segment->value.range->segments = segments;
+    segment->type = STATIC;
+    segment->value.static_string = malloc(sizeof(StaticSegment));
+    segment->value.static_string->var = var;
+
+    return segment;
+}
+
+Segment *segment_new_var(const char *var)
+{
+    Segment *segment = malloc(sizeof(Segment));
+
+    segment->type = VARIABLE;
+    segment->value.variable = malloc(sizeof(VariableSegment));
+    segment->value.variable->var = var;
 
     return segment;
 }
@@ -76,6 +80,20 @@ Segment *segment_new_loop(const char *var, const char *data, Vector *segments)
     segment->value.loop->var = var;
     segment->value.loop->data = data;
     segment->value.loop->segments = segments;
+
+    return segment;
+}
+
+Segment *segment_new_range(const char *var, size_t start, size_t end, Vector *segments)
+{
+    Segment *segment = malloc(sizeof(Segment));
+
+    segment->type = RANGE;
+    segment->value.range = malloc(sizeof(RangeSegment));
+    segment->value.range->var = var;
+    segment->value.range->start = start;
+    segment->value.range->end = end;
+    segment->value.range->segments = segments;
 
     return segment;
 }
@@ -104,145 +122,42 @@ Segment *segment_new_else_condition(Vector *segments)
     return segment;
 }
 
-Segment *segment_new_var(const char *var)
-{
-    Segment *segment = malloc(sizeof(Segment));
-
-    segment->type = STRING;
-    segment->value.var = malloc(sizeof(VarSegment));
-    segment->value.var->var = var;
-
-    return segment;
-}
-
-Segment *segment_new_static(const char *string)
-{
-    Segment *segment = malloc(sizeof(Segment));
-
-    segment->type = STATIC;
-    segment->value.static_string = malloc(sizeof(StaticSegment));
-    segment->value.static_string->string = string;
-
-    return segment;
-}
-
 void segment_free(Segment *segment) {
-    switch (segment->type) {
-        case BOOLEAN:
-            break;
-        case STRING:
-            free(segment->value.string);
-            break;
-        case NUMBER:
-            break;
-        case LIST_STRING:
-            for (size_t i = 0; i < segment->value.list_string->size; i++) {
-                free(segment->value.list_string->strings[i]);
-            }
-            free(segment->value.list_string->strings);
-            break;
-        default:
-            printf("Dynamic segment type:\n\t");
-            switch (segment->type) {
-                case RANGE:
-                    printf("range\n");
-                    // TODO free value.range->segments & value.range
-                    break;
-                default:
-                    printf("unknown\n");
-                    exit(1);
-            }
-            break;
-    }
+    //printf("TODO segment_free\n");
 }
 
-Segment *context_get(const Context *ctx, const char *key)
+void *context_get(const Context *ctx, const char *key)
 {
     _Context *priv = (_Context *)(ctx + 1);
     for (size_t i = 0; i < priv->size; i++) {
         Context_Entry *entry = &priv->entries[i];
         // TODO possible buffer overflow but who cares ;)
-        if (strcmp(entry->key, key) == 0) {
-            return entry->value;
-        }
+        if (strcmp(entry->key, key) == 0) return entry->value;
     }
     return NULL;
 }
 
-void context_insert(Context *self, const char *key, Segment *value) {
-    printf("Inserting %s, ", key);
-    switch (value->type) {
-        case BOOLEAN:
-            printf("boolean, value: %s\n", value->value.boolean ? "true" : "false");
-            break;
-        case STRING:
-            printf("string, value: %s\n", value->value.string);
-            break;
-        case NUMBER:
-            printf("number, value: %d\n", value->value.number);
-            break;
-        case LIST_STRING:
-            printf("list_string, size: %zu\n", value->value.list_string->size);
-            for (size_t i = 0; i < value->value.list_string->size; i++) {
-                printf("  %s\n", value->value.list_string->strings[i]);
-            }
-            break;
-        default:
-            fprintf(stderr, "Dynamic segment type:\n\t");
-            exit(1);
-    }
+void context_insert(Context *self, const char *key, void *value) {
     _Context *priv = (_Context *)(self + 1);
-    Segment *get = self->get(self, key);
+
+    void *get = self->get(self, key);
     if (get != NULL) {
         segment_free(get);
-        *get = *value;
+        get = value;
         return;
     }
+
     if (priv->size == priv->capacity) {
         priv->capacity *= 2;
         priv->entries = realloc(priv->entries, sizeof(Context_Entry) * priv->capacity);
     }
-    Context_Entry *entry = &priv->entries[priv->size++];
-    entry->key = key;
-    entry->value = value;
-}
-
-void context_insert_number(Context *self, const char *key, int value) {
-    Segment segment = {
-        .type = NUMBER,
-        .value.number = value,
-    };
-    context_insert(self, key, &segment);
-}
-
-void context_insert_string(Context *self, const char *key, char *value) {
-    Segment segment = {
-        .type = STRING,
-        .value.string = value,
-    };
-    context_insert(self, key, &segment);
-}
-
-void context_insert_boolean(Context *self, const char *key, Bool value) {
-    Segment segment = {
-        .type = BOOLEAN,
-        .value.boolean = value.value,
-    };
-    context_insert(self, key, &segment);
-}
-
-void context_insert_list_string(Context *self, const char *key, ListString value) {
-    Segment segment = {
-        .type = LIST_STRING,
-        .value.list_string = &value,
-    };
-    context_insert(self, key, &segment);
+    priv->entries[priv->size++] = (Context_Entry) { .key = key, .value = value };
 }
 
 Context *context_new()
 {
     Context *ctx = malloc(sizeof(Context) + sizeof(_Context));
-    ctx->insert = NULL;
+    ctx->insert = context_insert;
     ctx->get = context_get;
 
     _Context *priv = (_Context *)(ctx + 1);
@@ -251,39 +166,6 @@ Context *context_new()
     priv->capacity = DEFAULT_CONTEXT_SIZE;
 
     return ctx;
-}
-
-struct ListSegments {
-    Segment *segments;
-    size_t size;
-    size_t capacity;
-};
-
-ListSegments *list_segments_default() {
-    ListSegments *list = malloc(sizeof(ListSegments));
-    list->segments = malloc(sizeof(Segment) * DEFAULT_SEGMENT_SIZE);
-    list->size = 0;
-    list->capacity = DEFAULT_SEGMENT_SIZE;
-    return list;
-}
-
-void list_segments_push(ListSegments *list, Segment *segment) {
-    if (list->size == list->capacity) {
-        list->capacity *= 2;
-        list->segments = realloc(list->segments, sizeof(Segment) * list->capacity);
-    }
-    list->segments[list->size++] = *segment;
-}
-
-Segment *list_segments_last(ListSegments *list) {
-    return &list->segments[list->size - 1];
-}
-
-void list_segments_clear(ListSegments *list) {
-    for (size_t i = 0; i < list->size; i++) {
-        segment_free(&list->segments[i]);
-    }
-    list->size = 0;
 }
 
 struct _Engine {
@@ -331,13 +213,13 @@ void engine_preprocess(Engine *engine)
                 }
                 stack->push(stack, loop_segments);
             } else if (strncmp(directive, "if ", 3) == 0) {
-                const char* condition = directive + 3;
+                const char* condition = strdup(directive + 3);
                 Vector *condition_segments = vector_default();
                 Vector *last = stack->last(stack);
                 last->push(last, segment_new_if_condition("if", condition, condition_segments));
                 stack->push(stack, condition_segments);
             } else if (strncmp(directive, "elif ", 5) == 0) {
-                const char* condition = directive + 5;
+                const char* condition = strdup(directive + 5);
                 stack->pop(stack);
                 Vector *condition_segments = vector_default();
                 Vector *last = stack->last(stack);
@@ -353,7 +235,7 @@ void engine_preprocess(Engine *engine)
                 stack->pop(stack);
             } else {
                 Vector *last = stack->last(stack);
-                last->push(last, segment_new_var(directive));
+                last->push(last, segment_new_var(strdup(directive)));
             }
 
             free(directive);
@@ -373,11 +255,109 @@ void engine_preprocess(Engine *engine)
     if (stack->len(stack) != 1) exit(1); // TODO error handling
 }
 
-const char *engine_render(const Engine *engine, Context *ctx)
+
+bool eval(const char *condition, const Context *ctx)
 {
-    _Engine *priv = (_Engine *)(engine + 1);
-    // TODO
-    return NULL;
+    void *get = ctx->get(ctx, condition);
+    printf("evaluating \"%s\"\n", condition);
+    return eval_condition(condition, ctx);
+}
+
+char *engine_render(const Engine *self, Context *ctx)
+{
+    _Engine *priv = (_Engine *)(self + 1);
+
+    Vector *segments = priv->segments;
+    Vector *parts = vector_default();
+
+    char *skip_until = NULL;
+    bool condition_met = false;
+    //printf("\n\n\nRendering...\n");
+
+    for (size_t i = 0; i < segments->len(segments); ++i) {
+        const Segment *segment = segments->get(segments, i);
+        //print_segment_type(segment->type);
+
+        switch (segment->type) {
+        case STATIC: {
+            parts->push(parts, segment->value.static_string->var);
+        } break;
+        case VARIABLE: {
+            parts->push(parts, ctx->get(ctx, segment->value.variable->var));
+        } break;
+        case IF: {
+            const char *key = segment->value.if_condition->key;
+            const char *condition = segment->value.if_condition->condition;
+            printf("key: %s, condition: \"%s\"\n", key, condition);
+
+            Vector *inner_segments = segment->value.if_condition->segments;
+
+            if (strcmp(key, "if") == 0) {
+                if (eval(condition, ctx)) {
+                    condition_met = true;
+                    priv->segments = inner_segments;
+                    parts->push(parts, engine_render(self, ctx));
+                } else {
+                    condition_met = false;
+                }
+            } else if (strcmp(key, "elif") == 0) {
+                if (!condition_met) {
+                    if (eval(condition, ctx)) {
+                        condition_met = true;
+                        priv->segments = inner_segments;
+                        parts->push(parts, engine_render(self, ctx));
+                    }
+                }
+            }
+
+        } break;
+        case ELSE: {
+            Vector *inner_segments = segment->value.else_condition->segments;
+
+            if (!condition_met) {
+                priv->segments = inner_segments;
+                parts->push(parts, engine_render(self, ctx));
+            } else {
+                skip_until = "endif";
+            }
+        } break;
+        case LOOP: {
+            const char *loop_var = segment->value.loop->var;
+            const char *loop_data = segment->value.loop->data;
+            Vector *loop_segments = segment->value.loop->segments;
+
+            Vector *loop_data_vec = ctx->get(ctx, loop_data);
+            for (size_t j = 0; j < loop_data_vec->len(loop_data_vec); ++j) {
+                Context *inner_ctx = ctx;
+                inner_ctx->insert(inner_ctx, loop_var, loop_data_vec->get(loop_data_vec, j));
+                priv->segments = loop_segments;
+                char *loop_result = engine_render(self, inner_ctx);
+                parts->push(parts, loop_result);
+            }
+        } break;
+        case RANGE: {
+            const char *loop_var = segment->value.range->var;
+            size_t start = segment->value.range->start;
+            size_t end = segment->value.range->end;
+            Vector *loop_segments = segment->value.range->segments;
+
+            for (size_t j = start; j < end; ++j) {
+                Context *inner_ctx = ctx;
+                char num[2] = { j + '0', '\0' };
+                inner_ctx->insert(inner_ctx, loop_var, num);
+                priv->segments = loop_segments;
+                char *loop_result = engine_render(self, inner_ctx);
+                parts->push(parts, loop_result);
+            }
+        } break;
+        }
+    }
+    //printf("Rendered %zu parts\n", parts->len(parts));
+
+    char *result = str_join(parts, "");
+    //vector_free(parts); // TODO free parts
+
+    return result;
 }
 
 const char* read_file(const char* path) {

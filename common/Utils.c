@@ -191,7 +191,7 @@ const ASTNode* parse(Vector *tokens) {
     size_t tokens_len = tokens->len(tokens);
 
     for (size_t i = 0; i < tokens_len; ++i) {
-        const Token *token = tokens->get(tokens, i);
+        Token *token = tokens->get(tokens, i);
 
         if (token->type == LITERAL) {
             output_queue->push(output_queue, token);
@@ -317,7 +317,7 @@ int evaluate(const ASTNode* root, const Context *ctx) {
     if (root->token.type == LITERAL) {
         return root->token.data.value;
     } else if (root->token.type == IDENTIFIER) {
-        char *value = ctx->get(ctx, root->token.data.name)->value.string;
+        char *value = ctx->get(ctx, root->token.data.name);
         if (value) {
             if (strncmp(value, "true", 4) == 0) return 1;
             if (strncmp(value, "false", 5) == 0) return 0;
@@ -454,4 +454,38 @@ size_t str_arr_size(char **arr) {
         }
     }
     return count;
+}
+
+char *str_join(const Vector* vec, const char *delim) {
+    size_t delim_len = strlen(delim);
+    size_t vec_len = vec->len(vec);
+
+    size_t total_len = 0;
+    for (size_t i = 0; i < vec_len; ++i) {
+        total_len += strlen(vec->get(vec, i)) + delim_len;
+    }
+    total_len -= delim_len; // Remove the last delimiter
+
+    char *result = malloc(total_len + 1);
+    size_t offset = 0;
+    for (size_t i = 0; i < vec_len; ++i) {
+        const char *str = vec->get(vec, i);
+        size_t str_len = strlen(str);
+        memcpy(result + offset, str, str_len);
+        offset += str_len;
+        if (i < vec_len - 1) {
+            memcpy(result + offset, delim, delim_len);
+            offset += delim_len;
+        }
+    }
+
+    result[total_len] = '\0';
+
+    return result;
+}
+
+char *str_itoa(int num) {
+    char *str = malloc(12); // 12 is the max length of a 32-bit integer
+    sprintf(str, "%d", num);
+    return str;
 }
